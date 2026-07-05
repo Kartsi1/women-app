@@ -44,4 +44,21 @@ async function getSignedUrl(path) {
   return url;
 }
 
-module.exports = { uploadVerificationDoc, getSignedUrl };
+/**
+ * Upload an arbitrary buffer to a Firebase Storage path.
+ * Used for profile photos (profiles/<uid>/photo) and any future uploads
+ * that don't follow the verification/<uid>/<field> path convention.
+ *
+ * @param {string} storagePath - Full Storage object path, e.g. 'profiles/abc123/photo'
+ * @param {Buffer} buffer - file bytes from multer memoryStorage
+ * @param {string} mimetype - MIME type (e.g. 'image/jpeg')
+ */
+async function uploadFile(storagePath, buffer, mimetype) {
+  const bucket = getStorage().bucket();
+  await bucket.file(storagePath).save(buffer, {
+    metadata: { contentType: mimetype },
+    resumable: false,
+  });
+}
+
+module.exports = { uploadVerificationDoc, getSignedUrl, uploadFile };

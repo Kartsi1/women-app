@@ -1,5 +1,5 @@
 const User = require('../models/User');
-const { uploadVerificationDoc } = require('../services/storageService');
+const { uploadVerificationDoc, getSignedUrl, uploadFile } = require('../services/storageService');
 
 /**
  * POST /api/users/verification-docs
@@ -86,13 +86,137 @@ async function savePushToken(req, res) {
   }
 }
 
-module.exports = { submitVerificationDocs, savePushToken };
+/**
+ * PUT /api/users/profile
+ *
+ * Update the authenticated user's display name, bio, and home city.
+ *
+ * Body: { displayName?, bio?, homeCity? }
+ * Success response: { data: user }
+ * Error responses:
+ *   400 — bio exceeds 500 characters
+ *   404 — user document not found (should not happen for verified users)
+ *   500 — unexpected server error
+ */
+async function updateProfile(req, res) {
+  try {
+    const { displayName, bio, homeCity } = req.body;
 
-// ── PLAN 05 SLOT ─────────────────────────────────────────────────────────────
-// Plan 05 (user profiles) will add:
-//   updateProfile(req, res)   — PUT /api/users/profile
-//   getProfile(req, res)      — GET /api/users/:uid
-// ─────────────────────────────────────────────────────────────────────────────
+    // T-05-04: enforce bio maxlength before hitting the DB constraint
+    if (bio !== undefined && bio.length > 500) {
+      return res.status(400).json({ error: 'bio must not exceed 500 characters' });
+    }
+
+    const update = {};
+    if (displayName !== undefined) update.displayName = String(displayName).trim();
+    if (bio !== undefined) update.bio = String(bio);
+    if (homeCity !== undefined) update.homeCity = String(homeCity).trim();
+
+    const user = await User.findOneAndUpdate(
+      { firebaseUid: req.user.uid },
+      update,
+      { new: true }
+    );
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    res.json({ data: user });
+  } catch (err) {
+    console.error('[updateProfile]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * GET /api/users/:uid
+ *
+ * Return the public profile projection for another verified user.
+ *
+ * T-05-02: explicit projection — no private fields (email, verificationDocumentUrl, etc.)
+ * T-05-03: requester in target.blockedUsers → 403 (VERI-06 block enforcement)
+ *
+ * Success response: { data: { uid, displayName, bio, homeCity, photoURL, isVerified,
+ *                             hostsCount, tripsCount } }
+ * Error responses:
+ *   403 — requester is blocked by target
+ *   404 — target user not found
+ *   500 — unexpected server error
+ */
+async function getProfile(req, res) {
+  try {
+    const target = await User.findOne({ firebaseUid: req.params.uid });
+    if (!target) return res.status(404).json({ error: 'User not found' });
+
+    // T-05-03: block state enforcement — does the target have the requester blocked?
+    if (Array.isArray(target.blockedUsers) && target.blockedUsers.includes(req.user.uid)) {
+      return res.status(403).json({ error: 'Not available' });
+    }
+
+    // T-05-02: build an explicit public projection — never expose the raw User document
+    const photoURL = target.photoURL ? await getSignedUrl(target.photoURL) : null;
+
+    const data = {
+      uid: target.firebaseUid,
+      displayName: target.displayName,
+      bio: target.bio,
+      homeCity: target.homeCity,
+      photoURL,
+      isVerified: target.verificationStatus === 'approved',
+      hostsCount: target.hostsCount,
+      tripsCount: target.tripsCount,
+    };
+
+    res.json({ data });
+  } catch (err) {
+    console.error('[getProfile]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * POST /api/users/profile-photo
+ *
+ * Upload or replace the authenticated user's profile photo.
+ * Accepts a multipart upload (via multer memoryStorage.single) containing:
+ *   - photo (required, image/*)
+ *
+ * Validates MIME type (T-05-04), streams the buffer to Firebase Storage under
+ * profiles/<uid>/photo, then updates the user's photoURL field to that path.
+ * Callers resolve the path to a signed URL via getProfile or getMyProfile.
+ *
+ * Success response: { status: 'ok' }
+ * Error responses:
+ *   400 — missing file or non-image MIME type
+ *   500 — unexpected server error
+ */
+async function uploadProfilePhoto(req, res) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'photo file is required' });
+    }
+
+    // T-05-04: reject non-image MIME types
+    if (!req.file.mimetype.startsWith('image/')) {
+      return res.status(400).json({ error: 'photo must be an image file' });
+    }
+
+    const { uid } = req.user;
+    const storagePath = `profiles/${uid}/photo`;
+
+    await uploadFile(storagePath, req.file.buffer, req.file.mimetype);
+
+    await User.findOneAndUpdate(
+      { firebaseUid: uid },
+      { photoURL: storagePath }
+    );
+
+    res.json({ status: 'ok' });
+  } catch (err) {
+    console.error('[uploadProfilePhoto]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+module.exports = { submitVerificationDocs, savePushToken, updateProfile, getProfile, uploadProfilePhoto };
 
 // ── PLAN 06 SLOT ─────────────────────────────────────────────────────────────
 // Plan 06 (block / report) will add:

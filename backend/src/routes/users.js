@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const multer = require('multer');
-const { verifyFirebaseToken } = require('../middleware/auth');
+const { verifyFirebaseToken, requireVerified } = require('../middleware/auth');
 const userController = require('../controllers/userController');
 
 /**
@@ -37,13 +37,53 @@ router.post('/verification-docs', verifyFirebaseToken, upload, userController.su
  */
 router.post('/push-token', verifyFirebaseToken, userController.savePushToken);
 
-module.exports = router;
+/**
+ * Multer configuration for single profile photo uploads (T-05-04 MIME + size guard).
+ *
+ * - memoryStorage: buffer streamed directly to Firebase Storage via Admin SDK.
+ * - limits.fileSize: 5MB per file (matches verification-docs limit).
+ * - .single('photo'): one field named 'photo'.
+ */
+const uploadSingle = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+}).single('photo');
 
-// ── PLAN 05 SLOT ─────────────────────────────────────────────────────────────
-// Plan 05 (user profiles) will append:
-//   router.put('/profile', verifyFirebaseToken, requireVerified, userController.updateProfile);
-//   router.get('/:uid', verifyFirebaseToken, requireVerified, userController.getProfile);
-// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * PUT /api/users/profile
+ *
+ * Update display name, bio, and home city for the authenticated verified user.
+ * Body: { displayName?, bio?, homeCity? }
+ * T-05-01: guarded by verifyFirebaseToken + requireVerified.
+ */
+router.put('/profile', verifyFirebaseToken, requireVerified, userController.updateProfile);
+
+/**
+ * POST /api/users/profile-photo
+ *
+ * Upload or replace the authenticated verified user's profile photo.
+ * Multipart form field: 'photo' (image/*, max 5 MB).
+ * T-05-01: guarded by verifyFirebaseToken + requireVerified.
+ * T-05-04: MIME type validated in uploadProfilePhoto controller.
+ *
+ * NOTE: declared BEFORE the /:uid route to avoid being shadowed.
+ */
+router.post('/profile-photo', verifyFirebaseToken, requireVerified, uploadSingle, userController.uploadProfilePhoto);
+
+/**
+ * GET /api/users/:uid
+ *
+ * Return the public profile projection for a verified user by Firebase UID.
+ * T-05-01: guarded by verifyFirebaseToken + requireVerified.
+ * T-05-02: explicit projection only (no email, no verification docs).
+ * T-05-03: 403 if requester is in target's blockedUsers.
+ *
+ * NOTE: declared last among profile routes so static paths (/profile, /profile-photo,
+ * /verification-docs, /push-token) are matched first.
+ */
+router.get('/:uid', verifyFirebaseToken, requireVerified, userController.getProfile);
+
+module.exports = router;
 
 // ── PLAN 06 SLOT ─────────────────────────────────────────────────────────────
 // Plan 06 (block / report) will append:
