@@ -22,7 +22,7 @@ export async function registerUser(): Promise<unknown> {
 
 /**
  * Upload ID document and selfie photos to the backend for verification review.
- * Do NOT set Content-Type manually — let FormData set the boundary. See RESEARCH.md Pitfall 5.
+ * Do NOT set Content-Type manually — let FormData set the boundary (RESEARCH Pitfall 5).
  */
 export async function uploadVerificationDocs(idUri: string, selfieUri: string): Promise<unknown> {
   const token = await auth.currentUser?.getIdToken();
@@ -33,6 +33,21 @@ export async function uploadVerificationDocs(idUri: string, selfieUri: string): 
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: formData,
+  });
+  return res.json();
+}
+
+/**
+ * Register (or update) the Expo push token for the authenticated user.
+ * Called after the user grants notification permission (Plan 04 sends
+ * approval/rejection notifications to this token).
+ */
+export async function savePushToken(token: string): Promise<unknown> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/users/push-token`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ expoPushToken: token }),
   });
   return res.json();
 }
