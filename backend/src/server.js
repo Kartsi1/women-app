@@ -6,6 +6,7 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 const connectDB = require('./config/db');
 const authRouter = require('./routes/auth');
+const usersRouter = require('./routes/users');
 
 const app = express();
 const httpServer = createServer(app);
@@ -15,6 +16,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/auth', authRouter);
+app.use('/api/users', usersRouter);
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 // Socket.io (to be added)
