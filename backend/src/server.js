@@ -1,8 +1,10 @@
 require('dotenv').config();
+require('./config/firebase');
 const express = require('express');
 const cors = require('cors');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
+const connectDB = require('./config/db');
 
 const app = express();
 const httpServer = createServer(app);
@@ -21,4 +23,10 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+async function bootstrap() {
+  await connectDB();
+  httpServer.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
+
+bootstrap();
