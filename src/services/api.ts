@@ -109,3 +109,44 @@ export async function uploadProfilePhoto(uri: string): Promise<unknown> {
   });
   return res.json();
 }
+
+/**
+ * Block another user. The block is persisted in the caller's blockedUsers array
+ * so that the blocked user can no longer view the caller's profile (VERI-06).
+ *
+ * POST /api/users/block/:uid
+ */
+export async function blockUser(uid: string): Promise<unknown> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/users/block/${uid}`, {
+    method: 'POST',
+    headers,
+  });
+  return res.json();
+}
+
+/**
+ * Report payload sent to POST /api/users/report (VERI-07).
+ */
+export interface ReportPayload {
+  reportedUid?: string;
+  contentType?: string;
+  contentId?: string;
+  reason: string;
+}
+
+/**
+ * Submit a user or content report for admin review.
+ * The reason field is required — the backend rejects reports without one.
+ *
+ * POST /api/users/report
+ */
+export async function reportUser(payload: ReportPayload): Promise<unknown> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/users/report`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
