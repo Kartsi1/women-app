@@ -1,40 +1,38 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, Text, StyleSheet } from 'react-native';
+import ProfileScreen from '../screens/Profile/ProfileScreen';
+import EditProfileScreen from '../screens/Profile/EditProfileScreen';
+import ViewProfileScreen from '../screens/Profile/ViewProfileScreen';
 
+/**
+ * Param list for the authenticated (verified) app navigation stack.
+ *
+ * - Profile: own profile view (initial route)
+ * - EditProfile: edit display name, bio, home city, photo
+ * - ViewProfile: public profile for another verified user identified by uid
+ */
 export type AppStackParamList = {
-  Home: undefined;
+  Profile: undefined;
+  EditProfile: undefined;
+  ViewProfile: { uid: string };
 };
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
 
 /**
- * Placeholder home screen — Profile screens are added by Plan 05.
+ * AppNavigator renders the main app experience for verified users (PROF-01..04).
+ *
+ * Accessible only after RootNavigator confirms isVerified === true.
+ * Replaces the Plan 02 placeholder Home screen.
  */
-function HomeScreen() {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.text}>Verified — home</Text>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  text: {
-    fontSize: 18,
-    color: '#333',
-  },
-});
-
 export function AppNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Home" component={HomeScreen} />
+    <Stack.Navigator
+      initialRouteName="Profile"
+      screenOptions={{ headerShown: false }}
+    >
+      <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="ViewProfile" component={ViewProfileScreen} />
     </Stack.Navigator>
   );
 }

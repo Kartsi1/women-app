@@ -51,3 +51,61 @@ export async function savePushToken(token: string): Promise<unknown> {
   });
   return res.json();
 }
+
+/**
+ * Fetch the current user's own public profile from GET /api/users/:uid.
+ * The backend returns the explicit public projection (no email or verification docs).
+ */
+export async function getMyProfile(): Promise<unknown> {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('Not authenticated');
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/users/${uid}`, { headers });
+  return res.json();
+}
+
+/**
+ * Update the current user's profile fields (displayName, bio, homeCity).
+ * Calls PUT /api/users/profile.
+ */
+export async function updateProfile(fields: {
+  displayName?: string;
+  bio?: string;
+  homeCity?: string;
+}): Promise<unknown> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/users/profile`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(fields),
+  });
+  return res.json();
+}
+
+/**
+ * Fetch another verified user's public profile from GET /api/users/:uid.
+ */
+export async function getUserProfile(uid: string): Promise<unknown> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/users/${uid}`, { headers });
+  return res.json();
+}
+
+/**
+ * Upload or replace the current user's profile photo.
+ * Uses multipart/form-data — do NOT set Content-Type manually (RESEARCH Pitfall 5).
+ *
+ * @param uri - local file URI from expo-image-picker (e.g. file:///...)
+ */
+export async function uploadProfilePhoto(uri: string): Promise<unknown> {
+  const token = await auth.currentUser?.getIdToken();
+  const formData = new FormData();
+  formData.append('photo', { uri, type: 'image/jpeg', name: 'photo.jpg' } as unknown as Blob);
+  const res = await fetch(`${API_BASE_URL}/api/users/profile-photo`, {
+    method: 'POST',
+    // Authorization only — no Content-Type; let FormData set the boundary (Pitfall 5)
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+  return res.json();
+}
