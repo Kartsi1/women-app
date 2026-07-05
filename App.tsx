@@ -1,20 +1,14 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { useFirebaseAuth } from './src/hooks/useFirebaseAuth';
+import { RootNavigator } from './src/navigation/RootNavigator';
 
+/**
+ * App root — Expo entry point.
+ *
+ * useFirebaseAuth() subscribes to onAuthStateChanged and the notification-tap
+ * token-refresh listener BEFORE navigation renders. This is required so that
+ * the D-09 notification handler is active when the app first mounts.
+ */
 export default function App() {
-  return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
-  );
+  useFirebaseAuth();
+  return <RootNavigator />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
