@@ -71,6 +71,34 @@ router.put('/profile', verifyFirebaseToken, requireVerified, userController.upda
 router.post('/profile-photo', verifyFirebaseToken, requireVerified, uploadSingle, userController.uploadProfilePhoto);
 
 /**
+ * POST /api/users/block/:uid
+ *
+ * Add the target user to the authenticated user's blockedUsers array (idempotent).
+ * After blocking, GET /api/users/:blocker-uid returns 403 to the blocked user
+ * (enforced by getProfile, T-05-03 / VERI-06).
+ *
+ * T-07-01: req.user.uid taken from token — caller can only modify their own list
+ * T-07-03: guarded by verifyFirebaseToken + requireVerified
+ *
+ * NOTE: declared BEFORE GET /:uid so /block/:uid is not shadowed.
+ */
+router.post('/block/:uid', verifyFirebaseToken, requireVerified, userController.blockUser);
+
+/**
+ * POST /api/users/report
+ *
+ * Persist a user or content report for admin review (VERI-07).
+ * Body: { reportedUid?, contentType?, contentId?, reason (required) }
+ *
+ * T-07-02: reporterUid is derived from the verified token in the controller
+ * T-07-03: guarded by verifyFirebaseToken + requireVerified
+ * T-07-04: 400 if reason is missing
+ *
+ * NOTE: declared BEFORE GET /:uid so /report is not shadowed.
+ */
+router.post('/report', verifyFirebaseToken, requireVerified, userController.reportUser);
+
+/**
  * GET /api/users/:uid
  *
  * Return the public profile projection for a verified user by Firebase UID.
@@ -78,15 +106,10 @@ router.post('/profile-photo', verifyFirebaseToken, requireVerified, uploadSingle
  * T-05-02: explicit projection only (no email, no verification docs).
  * T-05-03: 403 if requester is in target's blockedUsers.
  *
- * NOTE: declared last among profile routes so static paths (/profile, /profile-photo,
- * /verification-docs, /push-token) are matched first.
+ * NOTE: declared LAST among all user routes so the static paths above
+ * (/profile, /profile-photo, /verification-docs, /push-token, /block/:uid, /report)
+ * are matched first.
  */
 router.get('/:uid', verifyFirebaseToken, requireVerified, userController.getProfile);
 
 module.exports = router;
-
-// ── PLAN 06 SLOT ─────────────────────────────────────────────────────────────
-// Plan 06 (block / report) will append:
-//   router.post('/block/:uid', verifyFirebaseToken, requireVerified, userController.blockUser);
-//   router.post('/report', verifyFirebaseToken, requireVerified, userController.reportUser);
-// ─────────────────────────────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const Report = require('../models/Report');
 const { uploadVerificationDoc, getSignedUrl, uploadFile } = require('../services/storageService');
 
 /**
@@ -216,10 +217,91 @@ async function uploadProfilePhoto(req, res) {
   }
 }
 
-module.exports = { submitVerificationDocs, savePushToken, updateProfile, getProfile, uploadProfilePhoto };
+/**
+ * POST /api/users/block/:uid
+ *
+ * Add the target user (req.params.uid) to the authenticated user's blockedUsers
+ * array. $addToSet makes the operation idempotent — repeated blocks are safe.
+ *
+ * The blocking user's profile then returns 403 to the blocked user via getProfile
+ * (T-05-03 / VERI-06 enforcement).
+ *
+ * Success response: { status: 'blocked' }
+ * Error responses:
+ *   400 — attempting to block yourself
+ *   500 — unexpected server error
+ *
+ * T-07-01: keys on req.user.uid — a caller can only modify their own blockedUsers
+ * T-07-03: guarded by requireVerified (route level)
+ */
+async function blockUser(req, res) {
+  try {
+    const targetUid = req.params.uid;
 
-// ── PLAN 06 SLOT ─────────────────────────────────────────────────────────────
-// Plan 06 (block / report) will add:
-//   blockUser(req, res)       — POST /api/users/block/:uid
-//   reportUser(req, res)      — POST /api/users/report
-// ─────────────────────────────────────────────────────────────────────────────
+    // T-07-04 / sanity: a user cannot block themselves
+    if (targetUid === req.user.uid) {
+      return res.status(400).json({ error: 'You cannot block yourself' });
+    }
+
+    // $addToSet is idempotent — safe to call multiple times
+    await User.findOneAndUpdate(
+      { firebaseUid: req.user.uid },
+      { $addToSet: { blockedUsers: targetUid } }
+    );
+
+    res.json({ status: 'blocked' });
+  } catch (err) {
+    console.error('[blockUser]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * POST /api/users/report
+ *
+ * Create a Report document for admin review (VERI-07).
+ *
+ * Body: { reportedUid?, contentType?, contentId?, reason (required) }
+ * Success response: { status: 'reported' }
+ * Error responses:
+ *   400 — reason is missing
+ *   500 — unexpected server error
+ *
+ * T-07-02: reporterUid is always taken from the verified token — never from the body
+ * T-07-03: guarded by requireVerified (route level)
+ * T-07-04: backend 400s when reason is absent
+ */
+async function reportUser(req, res) {
+  try {
+    const { reportedUid, contentType, contentId, reason } = req.body;
+
+    // T-07-04: reason is mandatory
+    if (!reason || typeof reason !== 'string' || !reason.trim()) {
+      return res.status(400).json({ error: 'reason is required' });
+    }
+
+    await Report.create({
+      reporterUid: req.user.uid,                  // T-07-02: from verified token
+      reportedUid: reportedUid || null,
+      contentType: contentType || undefined,
+      contentId: contentId || null,
+      reason: reason.trim(),
+      // status defaults to 'open'
+    });
+
+    res.json({ status: 'reported' });
+  } catch (err) {
+    console.error('[reportUser]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+module.exports = {
+  submitVerificationDocs,
+  savePushToken,
+  updateProfile,
+  getProfile,
+  uploadProfilePhoto,
+  blockUser,
+  reportUser,
+};
