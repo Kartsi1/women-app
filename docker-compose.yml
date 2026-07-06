@@ -1,0 +1,15 @@
+# Локальная инфраструктура для разработки WomenApp.
+# Поднимает MongoDB, к которой подключается backend (MONGODB_URI → mongodb://localhost:27017).
+# Firebase Emulators запускаются отдельно (npx firebase-tools, см. Makefile: make emulators).
+services:
+  mongo:
+    image: mongo:7
+    container_name: womenapp-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:
