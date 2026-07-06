@@ -13,7 +13,7 @@
 # mobile/ — отдельный git-репозиторий; Makefile лишь вызывает его npm-скрипты.
 
 .DEFAULT_GOAL := help
-.PHONY: help install dev backend admin mobile emulators db-up db-down down
+.PHONY: help install dev backend admin mobile emulators db-up db-down down ip
 
 help:
 	@echo "WomenApp — команды запуска:"
@@ -25,6 +25,12 @@ help:
 	@echo "  make emulators  Только Firebase Emulators (Auth :9099, Storage :9199, UI :4000)"
 	@echo "  make db-up      MongoDB в docker (:27017, detached)"
 	@echo "  make down       Остановить инфраструктуру (Mongo)"
+	@echo "  make ip         Показать LAN IP для доступа с телефона"
+
+# LAN IP машины — подставить в mobile/.env → EXPO_PUBLIC_API_BASE_URL для доступа с телефона.
+ip:
+	@echo "LAN IP: http://$$(hostname -I | awk '{print $$1}'):3000"
+	@echo "В mobile/.env: EXPO_PUBLIC_API_BASE_URL=http://$$(hostname -I | awk '{print $$1}'):3000"
 
 install:
 	@echo ">> backend"
