@@ -14,6 +14,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AppStackParamList } from '../../navigation/AppNavigator';
 import { getUserProfile, blockUser, reportUser } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'ViewProfile'>;
 
@@ -50,6 +51,7 @@ interface PublicProfile {
  */
 export default function ViewProfileScreen({ route, navigation }: Props) {
   const { uid } = route.params;
+  const currentUserUid = useAuthStore((s) => s.user?.uid);
 
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [loading, setLoading] = useState(false);
@@ -188,6 +190,29 @@ export default function ViewProfileScreen({ route, navigation }: Props) {
       <Text style={styles.stats}>
         Stays hosted: {profile.hostsCount} · Trips: {profile.tripsCount}
       </Text>
+
+      {/* ── Message request entry point (MSG-01) ────────────────────────── */}
+      {/* Hidden when viewing own profile */}
+      {uid !== currentUserUid && (
+        <TouchableOpacity
+          style={styles.messageRequestButton}
+          onPress={() => {
+            // Navigate to the Messages stack's compose screen.
+            // ViewProfileScreen lives in the Profile stack so we use
+            // navigation.navigate with a cross-tab path.
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (navigation as any).navigate('Messages', {
+              screen: 'MessageRequestCompose',
+              params: { recipientUid: uid },
+            });
+          }}
+          accessibilityLabel={`Send message request to ${profile.displayName ?? uid}`}
+          accessibilityHint="Opens the message request compose screen"
+        >
+          <Text style={styles.messageRequestButtonText}>Send message request</Text>
+        </TouchableOpacity>
+      )}
+      {/* ───────────────────────────────────────────────────────────────── */}
 
       {/* ── Block / Report actions — Plan 07 (VERI-06, VERI-07) ─────────── */}
       <View style={styles.safetyActions}>
@@ -348,6 +373,22 @@ const styles = StyleSheet.create({
     color: '#555',
     marginBottom: 24,
     marginTop: 4,
+  },
+  // Message request button (MSG-01) — min 44dp height per UI-SPEC accessibility requirement
+  messageRequestButton: {
+    width: '100%',
+    backgroundColor: '#6200ea',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    minHeight: 44,
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  messageRequestButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   // Safety actions row
   safetyActions: {

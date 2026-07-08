@@ -5,7 +5,6 @@ import { Text } from 'react-native';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import EditProfileScreen from '../screens/Profile/EditProfileScreen';
 import ViewProfileScreen from '../screens/Profile/ViewProfileScreen';
-import MessagesPlaceholderScreen from '../screens/Messages/MessagesPlaceholderScreen';
 import { connectSocket } from '../services/socketService';
 import { useAuthStore } from '../store/authStore';
 
@@ -37,6 +36,21 @@ export type HousingStackParamList = {
 };
 
 /**
+ * Param list for the Messages native-stack (plan 02-04).
+ *
+ *   ConversationList        — root; lists accepted conversations
+ *   DirectMessage           — real-time chat screen
+ *   MessageRequestCompose   — send a message request from a profile
+ *   MessageRequestInbox     — recipient's inbox of pending requests
+ */
+export type MessagesStackParamList = {
+  ConversationList: undefined;
+  DirectMessage: { conversationId: string; otherUid: string };
+  MessageRequestCompose: { recipientUid: string };
+  MessageRequestInbox: undefined;
+};
+
+/**
  * Param list for the root bottom-tab navigator.
  */
 export type TabParamList = {
@@ -51,8 +65,6 @@ export type TabParamList = {
 
 const HousingStack = createNativeStackNavigator<HousingStackParamList>();
 
-// Import screens lazily here to avoid circular dependency issues during startup.
-// These are imported at the top of the file — they must exist before this runs.
 import MapDiscoveryScreen from '../screens/Housing/MapDiscoveryScreen';
 import CreateListingScreen from '../screens/Housing/CreateListingScreen';
 import ListingDetailScreen from '../screens/Housing/ListingDetailScreen';
@@ -64,6 +76,28 @@ function HousingStackNavigator() {
       <HousingStack.Screen name="CreateListing" component={CreateListingScreen} />
       <HousingStack.Screen name="ListingDetail" component={ListingDetailScreen} />
     </HousingStack.Navigator>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Messages Stack — ConversationList → DirectMessage / MessageRequestCompose / MessageRequestInbox
+// ---------------------------------------------------------------------------
+
+const MessagesStack = createNativeStackNavigator<MessagesStackParamList>();
+
+import ConversationListScreen from '../screens/Messages/ConversationListScreen';
+import DirectMessageScreen from '../screens/Messages/DirectMessageScreen';
+import MessageRequestComposeScreen from '../screens/Messages/MessageRequestComposeScreen';
+import MessageRequestInboxScreen from '../screens/Messages/MessageRequestInboxScreen';
+
+function MessagesStackNavigator() {
+  return (
+    <MessagesStack.Navigator screenOptions={{ headerShown: false }}>
+      <MessagesStack.Screen name="ConversationList" component={ConversationListScreen} />
+      <MessagesStack.Screen name="DirectMessage" component={DirectMessageScreen} />
+      <MessagesStack.Screen name="MessageRequestCompose" component={MessageRequestComposeScreen} />
+      <MessagesStack.Screen name="MessageRequestInbox" component={MessageRequestInboxScreen} />
+    </MessagesStack.Navigator>
   );
 }
 
@@ -94,7 +128,7 @@ const Tab = createBottomTabNavigator<TabParamList>();
  *
  * Tabs:
  *  - Housing      → HousingStackNavigator (MapDiscovery + CreateListing + ListingDetail)
- *  - Messages     → MessagesPlaceholderScreen (replaced in plan 02-04)
+ *  - Messages     → MessagesStackNavigator (ConversationList + DirectMessage + Compose + Inbox)
  *  - Profile      → ProfileStackNavigator (Profile + EditProfile + ViewProfile)
  *
  * Active-tab indicator colour: #6200ea (accent per UI-SPEC).
@@ -103,6 +137,9 @@ const Tab = createBottomTabNavigator<TabParamList>();
  * app shell, connectSocket() acquires the Firebase token and opens the
  * authenticated WebSocket handshake. Disconnect happens on sign-out via
  * authStore.clear() + disconnectSocket() (wired in RootNavigator / sign-out flow).
+ *
+ * Plan 02-04: Messages tab now renders MessagesStackNavigator (ConversationListScreen
+ * as root) instead of MessagesPlaceholderScreen.
  */
 export function AppNavigator() {
   const { user } = useAuthStore();
@@ -136,7 +173,7 @@ export function AppNavigator() {
       />
       <Tab.Screen
         name="Messages"
-        component={MessagesPlaceholderScreen}
+        component={MessagesStackNavigator}
         options={{
           tabBarLabel: 'Messages',
           tabBarIcon: ({ color }) => (
