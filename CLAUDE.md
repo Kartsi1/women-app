@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Структура проекта
 
-Монорепо с двумя независимыми подпроектами:
+Единый git-монорепо с двумя подпроектами:
 
 - `/backend/` — Node.js REST API + WebSocket (Express, MongoDB, Socket.io)
 - `/mobile/` — React Native приложение (Expo 57)
 
-`mobile/` имеет собственный `.git/` — это отдельный git-репозиторий. Коммиты в мобильную часть делаются из директории `mobile/`.
+Один общий `.git` в корне (`mobile/` влит через `git subtree`, история сохранена). Коммиты в обе части делаются из корня репозитория — отдельного git-репо у `mobile/` больше нет. Секреты (`mobile/.env`, `mobile/firebase-adminsdk.json`) в `.gitignore` — не коммитить.
 
 ## Backend (`/backend/`)
 
