@@ -1,7 +1,20 @@
 node_modules/
 .env
+.env.*
+!.env.example
 *.log
 .expo/
 dist/
 build/
 .planning/
+
+# secrets — never commit (also covers mobile/ under monorepo)
+*-adminsdk*.json
+firebase-adminsdk.json
+google-services.json
+GoogleService-Info.plist
+*.jks
+*.p8
+*.p12
+*.keystore
+.idea/
