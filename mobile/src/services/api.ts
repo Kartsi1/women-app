@@ -236,3 +236,99 @@ export async function getListingDetail(
   const res = await fetch(`${API_BASE_URL}/api/listings/${id}`, { headers });
   return res.json();
 }
+
+// ---------------------------------------------------------------------------
+// Messaging API (MSG-01, MSG-02, MSG-03)
+// ---------------------------------------------------------------------------
+
+/**
+ * Send a message request with an intro to another verified user (MSG-01).
+ * POST /api/message-requests
+ *
+ * Security (T-02-04-03): senderUid is derived from the verified token on the server.
+ * The client only provides recipientUid and the intro text.
+ *
+ * Possible server errors: 400 (self/missing/too-long), 404 (unknown recipient),
+ * 409 (duplicate pair or existing conversation).
+ */
+export async function sendMessageRequest(
+  recipientUid: string,
+  intro: string
+): Promise<{ data?: unknown; error?: string }> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/message-requests`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ recipientUid, intro }),
+  });
+  return res.json();
+}
+
+/**
+ * Fetch pending message requests addressed to the authenticated user (MSG-02).
+ * GET /api/message-requests/inbox
+ *
+ * Returns only pending requests; accepted/declined are filtered server-side.
+ */
+export async function getMessageRequestInbox(): Promise<{ data?: unknown[]; error?: string }> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/message-requests/inbox`, { headers });
+  return res.json();
+}
+
+/**
+ * Accept or decline a pending message request (MSG-02).
+ * PATCH /api/message-requests/:id
+ *
+ * Security (T-02-04-05): the server enforces recipient-only access.
+ *
+ * On acceptance the response includes a `conversationId` field to navigate into.
+ */
+export async function updateMessageRequestStatus(
+  id: string,
+  status: 'accepted' | 'declined'
+): Promise<{ data?: unknown; conversationId?: string; error?: string }> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/message-requests/${id}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ status }),
+  });
+  return res.json();
+}
+
+/**
+ * List conversations where the authenticated user is a participant (MSG-03).
+ * GET /api/conversations
+ *
+ * Sorted by lastMessageAt descending.
+ */
+export async function listConversations(): Promise<{ data?: unknown[]; error?: string }> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/conversations`, { headers });
+  return res.json();
+}
+
+/**
+ * Fetch paginated message history for a specific conversation (MSG-03).
+ * GET /api/conversations/:id/messages
+ *
+ * Security (T-02-04-01): the server rejects requests from non-participants (403).
+ *
+ * @param conversationId - MongoDB ObjectId string of the conversation
+ * @param before         - ISO date cursor string for pagination (optional)
+ */
+export async function getConversationMessages(
+  conversationId: string,
+  before?: string
+): Promise<{ data?: unknown[]; nextBefore?: string | null; error?: string }> {
+  const headers = await authHeaders();
+  const params = new URLSearchParams();
+  if (before) params.set('before', before);
+  const query = params.toString() ? `?${params}` : '';
+  const res = await fetch(
+    `${API_BASE_URL}/api/conversations/${conversationId}/messages${query}`,
+    { headers }
+  );
+  return res.json();
+}
