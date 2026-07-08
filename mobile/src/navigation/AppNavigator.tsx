@@ -5,7 +5,6 @@ import { Text } from 'react-native';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import EditProfileScreen from '../screens/Profile/EditProfileScreen';
 import ViewProfileScreen from '../screens/Profile/ViewProfileScreen';
-import HousingPlaceholderScreen from '../screens/Housing/HousingPlaceholderScreen';
 import MessagesPlaceholderScreen from '../screens/Messages/MessagesPlaceholderScreen';
 import { connectSocket } from '../services/socketService';
 import { useAuthStore } from '../store/authStore';
@@ -26,6 +25,18 @@ export type AppStackParamList = {
 };
 
 /**
+ * Param list for the Housing nested native-stack.
+ * MapDiscovery is the initial screen (replaces HousingPlaceholderScreen from 02-01).
+ * CreateListing is pushed from a FAB on MapDiscovery.
+ * ListingDetail is pushed when a map pin is tapped.
+ */
+export type HousingStackParamList = {
+  MapDiscovery: undefined;
+  CreateListing: undefined;
+  ListingDetail: { listingId: string };
+};
+
+/**
  * Param list for the root bottom-tab navigator.
  */
 export type TabParamList = {
@@ -33,6 +44,28 @@ export type TabParamList = {
   Messages: undefined;
   ProfileTab: undefined;
 };
+
+// ---------------------------------------------------------------------------
+// Housing Stack — MapDiscovery → CreateListing / ListingDetail
+// ---------------------------------------------------------------------------
+
+const HousingStack = createNativeStackNavigator<HousingStackParamList>();
+
+// Import screens lazily here to avoid circular dependency issues during startup.
+// These are imported at the top of the file — they must exist before this runs.
+import MapDiscoveryScreen from '../screens/Housing/MapDiscoveryScreen';
+import CreateListingScreen from '../screens/Housing/CreateListingScreen';
+import ListingDetailScreen from '../screens/Housing/ListingDetailScreen';
+
+function HousingStackNavigator() {
+  return (
+    <HousingStack.Navigator screenOptions={{ headerShown: false }}>
+      <HousingStack.Screen name="MapDiscovery" component={MapDiscoveryScreen} />
+      <HousingStack.Screen name="CreateListing" component={CreateListingScreen} />
+      <HousingStack.Screen name="ListingDetail" component={ListingDetailScreen} />
+    </HousingStack.Navigator>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Nested Profile Stack — preserves EditProfile + ViewProfile routes
@@ -60,7 +93,7 @@ const Tab = createBottomTabNavigator<TabParamList>();
  * AppNavigator renders the bottom-tab shell for verified users.
  *
  * Tabs:
- *  - Housing      → HousingPlaceholderScreen (replaced in plan 02-02)
+ *  - Housing      → HousingStackNavigator (MapDiscovery + CreateListing + ListingDetail)
  *  - Messages     → MessagesPlaceholderScreen (replaced in plan 02-04)
  *  - Profile      → ProfileStackNavigator (Profile + EditProfile + ViewProfile)
  *
@@ -93,7 +126,7 @@ export function AppNavigator() {
     >
       <Tab.Screen
         name="Housing"
-        component={HousingPlaceholderScreen}
+        component={HousingStackNavigator}
         options={{
           tabBarLabel: 'Housing',
           tabBarIcon: ({ color }) => (
