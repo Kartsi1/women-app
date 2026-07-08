@@ -8,6 +8,7 @@ const connectDB = require('./config/db');
 const authRouter = require('./routes/auth');
 const usersRouter = require('./routes/users');
 const adminRouter = require('./routes/admin');
+const listingsRouter = require('./routes/listings');
 
 const app = express();
 const httpServer = createServer(app);
@@ -27,6 +28,7 @@ app.use(express.json());
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/listings', listingsRouter);
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 const { registerSocketHandlers } = require('./socket/chatHandler');

@@ -1,4 +1,5 @@
 import { auth } from '../config/firebase';
+import type { Listing, SearchListingsParams, CreateListingPayload } from '../types/listing';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
 
@@ -148,5 +149,90 @@ export async function reportUser(payload: ReportPayload): Promise<unknown> {
     headers,
     body: JSON.stringify(payload),
   });
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Listings API (LIST-01..05)
+// ---------------------------------------------------------------------------
+
+/**
+ * Search listings by geographic location and optional date range.
+ * GET /api/listings/search
+ *
+ * Security (T-02-02-01): Response never includes exactAddress.
+ * Returns array of Listing objects with neighbourhood centroid coordinates only.
+ */
+export async function searchListings(
+  params: SearchListingsParams
+): Promise<{ data: Listing[] }> {
+  const headers = await authHeaders();
+  const query = new URLSearchParams({
+    lat: String(params.lat),
+    lng: String(params.lng),
+    ...(params.radiusM !== undefined && { radiusM: String(params.radiusM) }),
+    ...(params.fromDate && { fromDate: params.fromDate }),
+    ...(params.toDate && { toDate: params.toDate }),
+  });
+  const res = await fetch(`${API_BASE_URL}/api/listings/search?${query}`, { headers });
+  return res.json();
+}
+
+/**
+ * Create a new housing listing with photos.
+ * POST /api/listings (multipart/form-data)
+ *
+ * Uses FormData — do NOT set Content-Type manually (let FormData set the boundary).
+ * Pattern from uploadProfilePhoto / uploadVerificationDocs (RESEARCH Pitfall 5).
+ */
+export async function createListing(
+  payload: CreateListingPayload
+): Promise<{ data?: { id: string }; error?: string }> {
+  const token = await auth.currentUser?.getIdToken();
+
+  const formData = new FormData();
+  formData.append('title', payload.title);
+  if (payload.description) formData.append('description', payload.description);
+  if (payload.houseRules) formData.append('houseRules', payload.houseRules);
+  formData.append('citySlug', payload.citySlug);
+  formData.append('exactAddress', payload.exactAddress);
+  // [lng, lat] — longitude FIRST per GeoJSON spec (Pitfall 2)
+  formData.append('coordinates', JSON.stringify(payload.coordinates));
+  if (payload.availabilityDates && payload.availabilityDates.length > 0) {
+    formData.append('availabilityDates', JSON.stringify(payload.availabilityDates));
+  }
+
+  // Append each photo as a multipart file
+  if (payload.photoUris) {
+    payload.photoUris.forEach((uri, i) => {
+      formData.append('photos', {
+        uri,
+        type: 'image/jpeg',
+        name: `photo_${i}.jpg`,
+      } as unknown as Blob);
+    });
+  }
+
+  const res = await fetch(`${API_BASE_URL}/api/listings`, {
+    method: 'POST',
+    // Authorization only — no Content-Type; let FormData set the boundary (Pitfall 5)
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+  return res.json();
+}
+
+/**
+ * Fetch a listing's full detail.
+ * GET /api/listings/:id
+ *
+ * Security (T-02-02-01): Returns addressRevealed=false and exactAddress=null
+ * in plan 02-02. The reveal is implemented in plan 02-03.
+ */
+export async function getListingDetail(
+  id: string
+): Promise<{ data?: Listing; error?: string }> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/listings/${id}`, { headers });
   return res.json();
 }
