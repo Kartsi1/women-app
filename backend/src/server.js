@@ -11,7 +11,15 @@ const adminRouter = require('./routes/admin');
 
 const app = express();
 const httpServer = createServer(app);
-const io = new Server(httpServer, { cors: { origin: '*' } });
+const io = new Server(httpServer, {
+  cors: {
+    // T-02-01-03: scope CORS to explicit origins instead of '*'
+    origin: process.env.ALLOWED_ORIGINS
+      ? process.env.ALLOWED_ORIGINS.split(',')
+      : ['http://localhost:3000'],
+    methods: ['GET', 'POST'],
+  },
+});
 
 app.use(cors());
 app.use(express.json());
@@ -21,11 +29,8 @@ app.use('/api/users', usersRouter);
 app.use('/api/admin', adminRouter);
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// Socket.io (to be added)
-io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
-  socket.on('disconnect', () => console.log('Client disconnected:', socket.id));
-});
+const { registerSocketHandlers } = require('./socket/chatHandler');
+registerSocketHandlers(io);
 
 const PORT = process.env.PORT || 3000;
 
