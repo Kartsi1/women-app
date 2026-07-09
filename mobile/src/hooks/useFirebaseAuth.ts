@@ -4,6 +4,7 @@ import * as Notifications from 'expo-notifications';
 import { auth } from '../config/firebase';
 import { useAuthStore } from '../store/authStore';
 import { registerForPushNotifications } from '../services/push';
+import { navigationRef } from '../navigation/navigationRef';
 
 export function useFirebaseAuth() {
   const { setUser, setVerified, clear, setExpoPushToken } = useAuthStore();
@@ -33,16 +34,49 @@ export function useFirebaseAuth() {
     return unsubscribe;
   }, []);
 
-  // D-09: When the user taps an approval/rejection push notification, force-refresh the
-  // Firebase ID token so the new isVerified custom claim is picked up immediately.
+  // D-09 + REQT-04: Notification response handler.
+  //
+  // Handles two notification types:
+  //   1. verification_approved / verification_rejected: force-refresh the Firebase ID token
+  //      so the new isVerified custom claim is picked up immediately (D-09).
+  //   2. stay_request: deep-link to the appropriate screen based on the viewer's role:
+  //      - Host receiving a new request → HostInbox
+  //      - Guest receiving accept/decline → RequestStatus (with requestId + listingId)
   useEffect(() => {
     const subscription = Notifications.addNotificationResponseReceivedListener(async (response) => {
-      const data = response.notification.request.content.data;
-      if (data?.type === 'verification_approved' || data?.type === 'verification_rejected') {
+      const data = response.notification.request.content.data as Record<string, string> | undefined;
+      if (!data) return;
+
+      // Verification push — force-refresh token so custom claim propagates (D-09)
+      if (data.type === 'verification_approved' || data.type === 'verification_rejected') {
         const currentUser = auth.currentUser;
         if (currentUser) {
           await currentUser.getIdToken(true);
           // onAuthStateChanged will fire again and update the store
+        }
+        return;
+      }
+
+      // Stay request push — deep-link to the right screen (REQT-04)
+      // Use `as never` cast on the route name to bypass react-navigation's
+      // strict generic typing on the untyped navigationRef (the ref is created
+      // without type params so the navigate signature accepts `never` for both args).
+      if (data.type === 'stay_request' && navigationRef.isReady()) {
+        if (data.status) {
+          // Guest receiving accepted/declined decision → Housing > RequestStatus
+          const requestParams: Record<string, string> = { requestId: data.requestId ?? '' };
+          if (data.listingId) requestParams.listingId = data.listingId;
+          // @ts-expect-error — untyped navigationRef; deep-link into nested navigator is safe
+          navigationRef.current?.navigate('Housing', {
+            screen: 'RequestStatus',
+            params: requestParams,
+          });
+        } else {
+          // Host receiving a new stay request → Housing > HostInbox
+          // @ts-expect-error — untyped navigationRef; safe nested navigation
+          navigationRef.current?.navigate('Housing', {
+            screen: 'HostInbox',
+          });
         }
       }
     });

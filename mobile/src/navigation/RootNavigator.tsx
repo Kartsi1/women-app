@@ -5,6 +5,7 @@ import { AuthNavigator } from './AuthNavigator';
 import { AppNavigator } from './AppNavigator';
 import { VerificationNavigator } from './VerificationNavigator';
 import { disconnectSocket } from '../services/socketService';
+import { navigationRef } from './navigationRef';
 
 /**
  * Top-level navigator that gates access based on auth + verification state.
@@ -37,7 +38,7 @@ export function RootNavigator() {
   }, [user]);
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       {!user ? (
         <AuthNavigator />
       ) : !isVerified ? (
