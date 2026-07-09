@@ -1,5 +1,6 @@
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
+const User = require('../models/User');
 
 /**
  * GET /api/conversations
@@ -91,7 +92,98 @@ async function getMessages(req, res) {
   }
 }
 
+/**
+ * GET /api/conversations/city
+ *
+ * Return the city slug and home city for the authenticated user (MSG-04).
+ *
+ * Security (T-02-05-01): citySlug is ALWAYS derived from the authenticated user's
+ * own profile — never from a request parameter. A null citySlug means the user
+ * has not yet set a home city (mobile shows a set-your-city empty state).
+ *
+ * Success response: { data: { citySlug: string|null, homeCity: string|null } }
+ */
+async function getCityInfo(req, res) {
+  try {
+    const user = await User.findOne({ firebaseUid: req.user.uid });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json({
+      data: {
+        citySlug: user.citySlug || null,
+        homeCity: user.homeCity || null,
+      },
+    });
+  } catch (err) {
+    console.error('[getCityInfo]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * GET /api/conversations/city/messages
+ *
+ * Return paginated city group message history for the authenticated user (MSG-04).
+ *
+ * Security (T-02-05-01): citySlug is ALWAYS derived from the authenticated user's
+ * own profile. A user with no homeCity set receives 400 and cannot read any city.
+ * A client-supplied citySlug is NEVER honoured.
+ *
+ * Pagination (cursor-based, mirrors getMessages from 02-04):
+ *   - Query param: before=<ISO date string> — return messages created before this timestamp
+ *   - Default: return the newest `limit` messages
+ *   - Limit: default 30, capped at 50
+ *   - Returns nextBefore (ISO date string) for the oldest message in the current page,
+ *     or null when there are no older messages
+ *
+ * Success response:
+ *   { data: Message[], nextBefore: string | null }
+ *   Each message: id, senderUid, senderName, content, createdAt.
+ */
+async function getCityMessages(req, res) {
+  try {
+    // T-02-05-01: always load citySlug from the caller's own profile
+    const user = await User.findOne({ firebaseUid: req.user.uid });
+    if (!user || !user.citySlug) {
+      return res.status(400).json({ error: 'No home city set' });
+    }
+    const { citySlug } = user;
+
+    // Pagination params
+    const rawLimit = parseInt(req.query.limit, 10) || 30;
+    const limit = Math.min(rawLimit, 50);
+
+    const filter = { citySlug, type: 'group' };
+    if (req.query.before) {
+      const beforeDate = new Date(req.query.before);
+      if (!isNaN(beforeDate.getTime())) {
+        filter.createdAt = { $lt: beforeDate };
+      }
+    }
+
+    const messages = await Message.find(
+      filter,
+      { _id: 1, senderUid: 1, senderName: 1, content: 1, createdAt: 1 }
+    )
+      .sort({ createdAt: -1 })
+      .limit(limit);
+
+    // Provide a nextBefore cursor if there might be older messages
+    const nextBefore = messages.length === limit
+      ? messages[messages.length - 1].createdAt.toISOString()
+      : null;
+
+    res.json({ data: messages, nextBefore });
+  } catch (err) {
+    console.error('[getCityMessages]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
 module.exports = {
   listConversations,
   getMessages,
+  getCityInfo,
+  getCityMessages,
 };

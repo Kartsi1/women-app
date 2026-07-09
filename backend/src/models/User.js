@@ -7,6 +7,7 @@ const userSchema = new Schema({
   photoURL: { type: String },
   bio: { type: String, maxlength: 500 },
   homeCity: { type: String, trim: true },
+  citySlug: { type: String, index: true },
   verificationStatus: {
     type: String,
     enum: ['none', 'pending', 'approved', 'rejected'],

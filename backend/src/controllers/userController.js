@@ -111,7 +111,14 @@ async function updateProfile(req, res) {
     const update = {};
     if (displayName !== undefined) update.displayName = String(displayName).trim();
     if (bio !== undefined) update.bio = String(bio);
-    if (homeCity !== undefined) update.homeCity = String(homeCity).trim();
+    if (homeCity !== undefined) {
+      const trimmed = String(homeCity).trim();
+      update.homeCity = trimmed;
+      // Normalise citySlug server-side (RESEARCH Open Question 4, MSG-04):
+      // homeCity → lowercase, trim, runs of whitespace → single hyphen.
+      // Empty homeCity → empty citySlug (user cleared their home city).
+      update.citySlug = trimmed.toLowerCase().replace(/\s+/g, '-');
+    }
 
     const user = await User.findOneAndUpdate(
       { firebaseUid: req.user.uid },
