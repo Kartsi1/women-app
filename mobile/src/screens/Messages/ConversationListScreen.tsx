@@ -120,6 +120,22 @@ export default function ConversationListScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
+      {/* City chat entry — always visible above the conversations list (02-05, MSG-04) */}
+      <TouchableOpacity
+        style={styles.cityChatRow}
+        onPress={() => navigation.navigate('CityGroupChat')}
+        accessibilityLabel="Open city group chat"
+        accessibilityRole="button"
+      >
+        <View style={styles.cityAvatar}>
+          <Text style={styles.cityAvatarIcon}>🏙</Text>
+        </View>
+        <View style={styles.cityRowContent}>
+          <Text style={styles.cityChatTitle}>City chat</Text>
+          <Text style={styles.cityChatSubtitle}>Connect with women in your city</Text>
+        </View>
+      </TouchableOpacity>
+
       {loading && conversations.length === 0 ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#6200ea" />
@@ -275,5 +291,40 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: '#fff',
     fontWeight: '600',
+  },
+  // City chat entry (02-05, MSG-04)
+  cityChatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 2,
+    borderBottomColor: '#e8e0ff',
+    backgroundColor: '#faf8ff',
+  },
+  cityAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#6200ea',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  cityAvatarIcon: {
+    fontSize: 20,
+  },
+  cityRowContent: {
+    flex: 1,
+  },
+  cityChatTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#6200ea',
+    marginBottom: 2,
+  },
+  cityChatSubtitle: {
+    fontSize: 13,
+    color: '#666',
   },
 });

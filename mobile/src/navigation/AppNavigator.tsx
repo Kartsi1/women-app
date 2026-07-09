@@ -42,18 +42,20 @@ export type HousingStackParamList = {
 };
 
 /**
- * Param list for the Messages native-stack (plan 02-04).
+ * Param list for the Messages native-stack (plan 02-04 + 02-05).
  *
- *   ConversationList        — root; lists accepted conversations
- *   DirectMessage           — real-time chat screen
- *   MessageRequestCompose   — send a message request from a profile
- *   MessageRequestInbox     — recipient's inbox of pending requests
+ *   ConversationList        — root; lists accepted conversations + city chat entry (02-05)
+ *   DirectMessage           — real-time 1:1 chat screen (02-04)
+ *   MessageRequestCompose   — send a message request from a profile (02-04)
+ *   MessageRequestInbox     — recipient's inbox of pending requests (02-04)
+ *   CityGroupChat           — real-time city group chat screen (02-05, MSG-04)
  */
 export type MessagesStackParamList = {
   ConversationList: undefined;
   DirectMessage: { conversationId: string; otherUid: string };
   MessageRequestCompose: { recipientUid: string };
   MessageRequestInbox: undefined;
+  CityGroupChat: undefined;
 };
 
 /**
@@ -101,6 +103,7 @@ import ConversationListScreen from '../screens/Messages/ConversationListScreen';
 import DirectMessageScreen from '../screens/Messages/DirectMessageScreen';
 import MessageRequestComposeScreen from '../screens/Messages/MessageRequestComposeScreen';
 import MessageRequestInboxScreen from '../screens/Messages/MessageRequestInboxScreen';
+import CityGroupChatScreen from '../screens/Messages/CityGroupChatScreen';
 
 function MessagesStackNavigator() {
   return (
@@ -109,6 +112,7 @@ function MessagesStackNavigator() {
       <MessagesStack.Screen name="DirectMessage" component={DirectMessageScreen} />
       <MessagesStack.Screen name="MessageRequestCompose" component={MessageRequestComposeScreen} />
       <MessagesStack.Screen name="MessageRequestInbox" component={MessageRequestInboxScreen} />
+      <MessagesStack.Screen name="CityGroupChat" component={CityGroupChatScreen} />
     </MessagesStack.Navigator>
   );
 }
