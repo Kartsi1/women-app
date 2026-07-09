@@ -28,11 +28,17 @@ export type AppStackParamList = {
  * MapDiscovery is the initial screen (replaces HousingPlaceholderScreen from 02-01).
  * CreateListing is pushed from a FAB on MapDiscovery.
  * ListingDetail is pushed when a map pin is tapped.
+ * StayRequestCompose — guest composes a stay request (02-03 REQT-01).
+ * RequestStatus — read-only request status; address revealed when accepted (02-03 REQT-03).
+ * HostInbox — host sees incoming stay requests (02-03 REQT-02).
  */
 export type HousingStackParamList = {
   MapDiscovery: undefined;
   CreateListing: undefined;
   ListingDetail: { listingId: string };
+  StayRequestCompose: { listingId: string };
+  RequestStatus: { requestId: string; listingId?: string };
+  HostInbox: undefined;
 };
 
 /**
@@ -68,6 +74,9 @@ const HousingStack = createNativeStackNavigator<HousingStackParamList>();
 import MapDiscoveryScreen from '../screens/Housing/MapDiscoveryScreen';
 import CreateListingScreen from '../screens/Housing/CreateListingScreen';
 import ListingDetailScreen from '../screens/Housing/ListingDetailScreen';
+import StayRequestComposeScreen from '../screens/Requests/StayRequestComposeScreen';
+import RequestStatusScreen from '../screens/Requests/RequestStatusScreen';
+import HostInboxScreen from '../screens/Requests/HostInboxScreen';
 
 function HousingStackNavigator() {
   return (
@@ -75,6 +84,9 @@ function HousingStackNavigator() {
       <HousingStack.Screen name="MapDiscovery" component={MapDiscoveryScreen} />
       <HousingStack.Screen name="CreateListing" component={CreateListingScreen} />
       <HousingStack.Screen name="ListingDetail" component={ListingDetailScreen} />
+      <HousingStack.Screen name="StayRequestCompose" component={StayRequestComposeScreen} />
+      <HousingStack.Screen name="RequestStatus" component={RequestStatusScreen} />
+      <HousingStack.Screen name="HostInbox" component={HostInboxScreen} />
     </HousingStack.Navigator>
   );
 }

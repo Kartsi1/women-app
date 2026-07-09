@@ -14,6 +14,7 @@ import type { HousingStackParamList } from '../../navigation/AppNavigator';
 import { getListingDetail } from '../../services/api';
 import type { Listing } from '../../types/listing';
 import SafetyChip from '../../components/Listings/SafetyChip';
+import AddressRevealCard from '../../components/Listings/AddressRevealCard';
 
 type Props = NativeStackScreenProps<HousingStackParamList, 'ListingDetail'>;
 
@@ -143,8 +144,11 @@ export default function ListingDetailScreen({ route, navigation }: Props) {
             <Text style={styles.areaLabel}>{areaLabel}</Text>
           )}
 
-          {/* Safety chip — always shown when addressRevealed is false (T-02-02-01) */}
-          {!listing.addressRevealed && (
+          {/* Address reveal card (green) when accepted; SafetyChip (amber) otherwise.
+              Mutually exclusive — server controls which field is populated (T-02-03-01). */}
+          {listing.addressRevealed && listing.exactAddress ? (
+            <AddressRevealCard address={listing.exactAddress} />
+          ) : (
             <View style={styles.safetyChipContainer}>
               <SafetyChip />
             </View>
@@ -204,7 +208,7 @@ export default function ListingDetailScreen({ route, navigation }: Props) {
             accessibilityLabel="Request stay"
             accessibilityRole="button"
             onPress={() => {
-              // Placeholder: compose stay request (wired in 02-03)
+              navigation.navigate('StayRequestCompose', { listingId: listing.id });
             }}
           >
             <Text style={styles.ctaButtonText}>Request stay</Text>
