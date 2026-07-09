@@ -1,5 +1,6 @@
 import { auth } from '../config/firebase';
 import type { Listing, SearchListingsParams, CreateListingPayload } from '../types/listing';
+import type { CityInfo, Message } from '../types/conversation';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
 
@@ -403,6 +404,49 @@ export async function getConversationMessages(
   const query = params.toString() ? `?${params}` : '';
   const res = await fetch(
     `${API_BASE_URL}/api/conversations/${conversationId}/messages${query}`,
+    { headers }
+  );
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// City Group Chat API (MSG-04, 02-05)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch the city slug and home city for the authenticated user (MSG-04).
+ * GET /api/conversations/city
+ *
+ * Security (T-02-05-01): the server derives citySlug from the caller's own
+ * profile — we do NOT send a citySlug from the client.
+ *
+ * Returns { data: { citySlug: string|null, homeCity: string|null } }
+ * citySlug is null when the user has not set a home city yet.
+ */
+export async function getCityInfo(): Promise<{ data?: CityInfo; error?: string }> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/conversations/city`, { headers });
+  return res.json();
+}
+
+/**
+ * Fetch paginated city group message history (MSG-04).
+ * GET /api/conversations/city/messages
+ *
+ * Security (T-02-05-01): the server derives citySlug from the caller's profile.
+ * We do NOT send a citySlug query param — the server ignores any client-supplied city.
+ *
+ * @param before - ISO date cursor string for pagination (optional)
+ */
+export async function getCityMessages(
+  before?: string
+): Promise<{ data?: Message[]; nextBefore?: string | null; error?: string }> {
+  const headers = await authHeaders();
+  const params = new URLSearchParams();
+  if (before) params.set('before', before);
+  const query = params.toString() ? `?${params}` : '';
+  const res = await fetch(
+    `${API_BASE_URL}/api/conversations/city/messages${query}`,
     { headers }
   );
   return res.json();

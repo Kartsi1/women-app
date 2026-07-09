@@ -7,6 +7,14 @@ interface Props {
   isOwn: boolean;
   /** Called with the message when the user taps a failed bubble to retry. */
   onRetry?: (message: Message) => void;
+  /**
+   * Sender's display name — used for city group chat bubbles (02-05, MSG-04).
+   * When present AND the bubble is NOT own, renders the name as a small muted label
+   * (Label/14px, #777777) above the message content so recipients can identify the sender.
+   * When absent (DM usage from 02-04), the bubble renders exactly as before — no visual
+   * change for direct messages.
+   */
+  senderName?: string;
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -30,7 +38,7 @@ const BUBBLE_MAX_WIDTH = SCREEN_WIDTH * 0.75; // max 75% per UI-SPEC
  *   'failed'   — shows "Message not delivered — tap to retry" in #d32f2f;
  *                 the entire bubble is wrapped in a TouchableOpacity that calls onRetry
  */
-export default function MessageBubble({ message, isOwn, onRetry }: Props) {
+export default function MessageBubble({ message, isOwn, onRetry, senderName }: Props) {
   const isFailed = message.status === 'failed';
   const isSending = message.status === 'sending';
 
@@ -42,6 +50,11 @@ export default function MessageBubble({ message, isOwn, onRetry }: Props) {
 
   const content = (
     <View style={[styles.wrapper, isOwn ? styles.wrapperRight : styles.wrapperLeft]}>
+      {/* Sender name label — shown above non-own group bubbles only (02-05, MSG-04).
+          Absent for DM usage (senderName not passed from DirectMessageScreen). */}
+      {!isOwn && !!senderName && (
+        <Text style={styles.senderName}>{senderName}</Text>
+      )}
       <View style={bubbleStyle}>
         <Text style={styles.content}>{message.content}</Text>
 
@@ -138,5 +151,11 @@ const styles = StyleSheet.create({
     color: '#aaa',
     marginTop: 4,
     textAlign: 'right',
+  },
+  senderName: {
+    fontSize: 14,        // Label/14px per UI-SPEC
+    color: '#777777',    // body-muted per UI-SPEC
+    marginBottom: 2,
+    paddingLeft: 4,
   },
 });
