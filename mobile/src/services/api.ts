@@ -238,6 +238,81 @@ export async function getListingDetail(
 }
 
 // ---------------------------------------------------------------------------
+// Stay Request API (REQT-01, REQT-02, REQT-03, REQT-04)
+// ---------------------------------------------------------------------------
+
+export interface CreateStayRequestPayload {
+  listingId: string;
+  checkIn: string;  // ISO date string
+  checkOut: string; // ISO date string
+  intro: string;    // max 500 chars
+}
+
+export interface StayRequestData {
+  _id: string;
+  guestUid: string;
+  listingId: string;
+  checkIn: string;
+  checkOut: string;
+  intro: string;
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt: string;
+}
+
+/**
+ * Send a stay request from the authenticated guest to a listing host (REQT-01).
+ * POST /api/requests
+ *
+ * Security (T-02-03-04): guestUid derived from the verified token on the server.
+ * Possible server errors: 400 (invalid dates/intro), 403 (own listing), 404 (listing not found).
+ */
+export async function createStayRequest(
+  payload: CreateStayRequestPayload
+): Promise<{ data?: { id: string }; error?: string }> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/requests`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
+
+/**
+ * Fetch stay requests sent to the authenticated host (REQT-02).
+ * GET /api/requests/inbox
+ *
+ * Returns all stay requests where the caller is the host, newest first.
+ * Projected to safe fields only.
+ */
+export async function getHostInbox(): Promise<{ data?: StayRequestData[]; error?: string }> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/requests/inbox`, { headers });
+  return res.json();
+}
+
+/**
+ * Accept or decline a stay request (REQT-02 — host only).
+ * PATCH /api/requests/:id
+ *
+ * Security (T-02-03-02): the server enforces host-only access.
+ * On acceptance, the guest receives a push notification and
+ * the listing detail will reveal the exact address to that guest only (REQT-03).
+ */
+export async function updateStayRequestStatus(
+  id: string,
+  status: 'accepted' | 'declined'
+): Promise<{ data?: StayRequestData; error?: string }> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/requests/${id}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ status }),
+  });
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
 // Messaging API (MSG-01, MSG-02, MSG-03)
 // ---------------------------------------------------------------------------
 

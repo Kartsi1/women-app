@@ -1,4 +1,5 @@
 const Listing = require('../models/Listing');
+const StayRequest = require('../models/StayRequest');
 const { uploadFile, getSignedUrl } = require('../services/storageService');
 
 /**
@@ -266,9 +267,10 @@ async function searchListings(req, res) {
  *
  * Fetch a listing's detail view.
  *
- * Security (T-02-02-01): exactAddress is set to null in THIS slice.
- *   addressRevealed=false for all users in plan 02-02 — the accepted-StayRequest
- *   reveal is implemented in plan 02-03 once StayRequest model exists.
+ * Security (T-02-03-01 / T-02-02-01): exactAddress is revealed ONLY when
+ *   the requesting user has an ACCEPTED StayRequest for this specific listing.
+ *   The check is per-request and per-user — no cross-user caching.
+ *   All other users receive exactAddress=null and addressRevealed=false.
  *
  * Never spread the raw document — build an explicit data object (getProfile pattern).
  */
@@ -278,6 +280,17 @@ async function getListingDetail(req, res) {
     if (!listing) {
       return res.status(404).json({ error: 'Listing not found' });
     }
+
+    // --- T-02-03-01: address-reveal gate ---
+    // Query whether THIS specific requester has an accepted stay request for THIS listing.
+    // Check performed per-request, per-user — never cached across users or requests.
+    const acceptedRequest = await StayRequest.findOne({
+      listingId: listing._id,
+      guestUid: req.user.uid,
+      status: 'accepted',
+    }).lean();
+
+    const addressRevealed = Boolean(acceptedRequest);
 
     // Resolve all photo paths to signed URLs
     const photoUrls = await Promise.all(
@@ -291,8 +304,7 @@ async function getListingDetail(req, res) {
     );
 
     // Build explicit projection — NEVER spread the raw document (Pitfall 5)
-    // exactAddress is deliberately set to null in this slice (02-02).
-    // The accepted-StayRequest reveal (REQT-03) is wired in plan 02-03.
+    // exactAddress is included ONLY when the requester has an accepted request (T-02-03-01).
     const data = {
       id: listing._id,
       title: listing.title,
@@ -305,9 +317,9 @@ async function getListingDetail(req, res) {
       availabilityDates: listing.availabilityDates,
       citySlug: listing.citySlug,
       isActive: listing.isActive,
-      // exactAddress deliberately set to null until StayRequest accepted (02-03)
-      exactAddress: null,
-      addressRevealed: false,
+      // exactAddress revealed only to a guest with an accepted StayRequest (REQT-03 / T-02-03-01)
+      exactAddress: addressRevealed ? listing.exactAddress : null,
+      addressRevealed,
       // Owner flag — client uses to show "Manage listing" vs "Request stay"
       isOwner: listing.ownerUid === req.user.uid,
     };
