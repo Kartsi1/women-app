@@ -59,11 +59,24 @@ export type MessagesStackParamList = {
 };
 
 /**
+ * Param list for the Community nested native-stack (03-01, COMM-01).
+ *
+ *   CommunityFeed — root feed screen with FAB → CreatePost
+ *   CreatePost    — compose and submit a new post
+ *   (PostDetail is added in 03-02 once comments/likes are wired)
+ */
+export type CommunityStackParamList = {
+  CommunityFeed: undefined;
+  CreatePost: undefined;
+};
+
+/**
  * Param list for the root bottom-tab navigator.
  */
 export type TabParamList = {
   Housing: undefined;
   Messages: undefined;
+  Community: undefined;
   ProfileTab: undefined;
 };
 
@@ -114,6 +127,24 @@ function MessagesStackNavigator() {
       <MessagesStack.Screen name="MessageRequestInbox" component={MessageRequestInboxScreen} />
       <MessagesStack.Screen name="CityGroupChat" component={CityGroupChatScreen} />
     </MessagesStack.Navigator>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Community Stack — CommunityFeed → CreatePost (03-01, COMM-01)
+// ---------------------------------------------------------------------------
+
+const CommunityStack = createNativeStackNavigator<CommunityStackParamList>();
+
+import CommunityFeedScreen from '../screens/Community/CommunityFeedScreen';
+import CreatePostScreen from '../screens/Community/CreatePostScreen';
+
+function CommunityStackNavigator() {
+  return (
+    <CommunityStack.Navigator screenOptions={{ headerShown: false }}>
+      <CommunityStack.Screen name="CommunityFeed" component={CommunityFeedScreen} />
+      <CommunityStack.Screen name="CreatePost" component={CreatePostScreen} />
+    </CommunityStack.Navigator>
   );
 }
 
@@ -194,6 +225,16 @@ export function AppNavigator() {
           tabBarLabel: 'Messages',
           tabBarIcon: ({ color }) => (
             <Text style={{ fontSize: 20, color }}>💬</Text>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Community"
+        component={CommunityStackNavigator}
+        options={{
+          tabBarLabel: 'Community',
+          tabBarIcon: ({ color }) => (
+            <Text style={{ fontSize: 20, color }}>🌐</Text>
           ),
         }}
       />

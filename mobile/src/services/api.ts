@@ -1,6 +1,7 @@
 import { auth } from '../config/firebase';
 import type { Listing, SearchListingsParams, CreateListingPayload } from '../types/listing';
 import type { CityInfo, Message } from '../types/conversation';
+import type { Post } from '../types/community';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
 
@@ -449,5 +450,62 @@ export async function getCityMessages(
     `${API_BASE_URL}/api/conversations/city/messages${query}`,
     { headers }
   );
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Community Feed API (COMM-01)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch a cursor-paginated page of community posts.
+ * GET /api/posts?before=<base64cursor>
+ *
+ * The backend resolves photoUrl storage paths to signed URLs before responding —
+ * the client always receives a signed URL or null, never a raw storage path.
+ *
+ * @param before - opaque base64 cursor from the previous page's nextCursor field
+ */
+export async function getFeed(
+  before?: string
+): Promise<{ data?: Post[]; nextCursor?: string | null; hasMore?: boolean; error?: string }> {
+  const headers = await authHeaders();
+  const params = new URLSearchParams();
+  if (before) params.set('before', before);
+  const query = params.toString() ? `?${params}` : '';
+  const res = await fetch(`${API_BASE_URL}/api/posts${query}`, { headers });
+  return res.json();
+}
+
+/**
+ * Create a new community post with optional single photo.
+ * POST /api/posts (multipart/form-data)
+ *
+ * Do NOT set Content-Type manually — let FormData set the multipart boundary (RESEARCH Pitfall 5).
+ * The server takes authorUid from the verified Firebase token — the client never sends it.
+ *
+ * @param text     - post text content (required, max 1000 chars)
+ * @param photoUri - local file URI from expo-image-picker (optional)
+ */
+export async function createPost(
+  text: string,
+  photoUri?: string
+): Promise<{ data?: { id: string }; error?: string }> {
+  const token = await auth.currentUser?.getIdToken();
+  const formData = new FormData();
+  formData.append('text', text);
+  if (photoUri) {
+    formData.append('photo', {
+      uri: photoUri,
+      type: 'image/jpeg',
+      name: 'photo.jpg',
+    } as unknown as Blob);
+  }
+  const res = await fetch(`${API_BASE_URL}/api/posts`, {
+    method: 'POST',
+    // Authorization only — NO Content-Type; let FormData set the boundary (Pitfall 5)
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
   return res.json();
 }
