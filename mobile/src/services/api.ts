@@ -1,7 +1,7 @@
 import { auth } from '../config/firebase';
 import type { Listing, SearchListingsParams, CreateListingPayload } from '../types/listing';
 import type { CityInfo, Message } from '../types/conversation';
-import type { Post, Comment } from '../types/community';
+import type { Post, Comment, StayReviews, UserReviews } from '../types/community';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
 
@@ -589,4 +589,74 @@ export async function deletePost(
  */
 export async function reportContent(payload: ReportPayload): Promise<unknown> {
   return reportUser(payload);
+}
+
+// ---------------------------------------------------------------------------
+// Review API (REVW-01, REVW-02, REVW-03) — Phase 3 Plan 04
+// ---------------------------------------------------------------------------
+
+/**
+ * Submit a star+text review for a completed stay (REVW-01, REVW-02).
+ * POST /api/reviews
+ *
+ * Security: reviewerUid, direction, and subjectUid are derived from the
+ * verified Firebase token + StayRequest on the server — NEVER sent by client.
+ * The server enforces eligibility (accepted stay, past checkOut, one per direction).
+ *
+ * @param stayRequestId - MongoDB ObjectId string of the stay
+ * @param rating        - integer 1–5 (server rejects 0 or out-of-range)
+ * @param text          - minimum 20 characters (server rejects shorter)
+ */
+export async function createReview(params: {
+  stayRequestId: string;
+  rating: number;
+  text: string;
+}): Promise<{ data?: { id: string }; error?: string }> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/reviews`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(params),
+  });
+  return res.json();
+}
+
+/**
+ * Fetch the blind-release review pair for a stay (REVW-03).
+ * GET /api/reviews/:stayRequestId
+ *
+ * SAFETY: The server computes the reveal predicate (bothSubmitted || now >= checkOut+14d)
+ * and strips counterpartReview when the predicate is false — the client receives null.
+ * The mobile client MUST NOT implement any reveal logic of its own; it renders whatever
+ * state the server returns, passing it through unchanged.
+ *
+ * Response shape: StayReviews { state, revealDeadline, ownReview, counterpartReview }
+ *   - state 'waiting'  → counterpartReview is null (server-withheld)
+ *   - state 'revealed' → both fields are populated Review objects
+ */
+export async function getStayReviews(
+  stayRequestId: string
+): Promise<{ data?: StayReviews; error?: string }> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/reviews/${stayRequestId}`, { headers });
+  return res.json();
+}
+
+/**
+ * Fetch the public review aggregate for a user profile (REVW-01, REVW-02, REVW-03).
+ * GET /api/reviews/user/:uid
+ *
+ * The server only includes revealed reviews in the aggregation — unrevealed reviews
+ * are excluded from both the list and the avgRating/reviewCount calculation.
+ * The client renders exactly what the server returns, never filtering or deriving
+ * reveal state on its own.
+ *
+ * @param uid - Firebase UID of the user whose reviews to fetch
+ */
+export async function getUserReviews(
+  uid: string
+): Promise<{ data?: UserReviews; error?: string }> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/reviews/user/${uid}`, { headers });
+  return res.json();
 }
