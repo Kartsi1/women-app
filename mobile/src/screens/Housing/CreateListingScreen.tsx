@@ -9,7 +9,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import MapView, { Marker, Region } from 'react-native-maps';
+import MapView, { Marker, Region } from '../../components/Map/MapView';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuthStore } from '../../store/authStore';
 import { useListingStore } from '../../store/listingStore';

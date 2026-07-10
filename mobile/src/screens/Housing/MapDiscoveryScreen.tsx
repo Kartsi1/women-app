@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   SafeAreaView,
 } from 'react-native';
-import MapView, { Marker, Region } from 'react-native-maps';
+import MapView, { Marker, Region } from '../../components/Map/MapView';
 import * as Location from 'expo-location';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
