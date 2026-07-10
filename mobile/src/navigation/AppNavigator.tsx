@@ -59,15 +59,18 @@ export type MessagesStackParamList = {
 };
 
 /**
- * Param list for the Community nested native-stack (03-01, COMM-01).
+ * Param list for the Community nested native-stack (03-01, COMM-01; 03-02, COMM-02/03).
  *
  *   CommunityFeed — root feed screen with FAB → CreatePost
  *   CreatePost    — compose and submit a new post
- *   (PostDetail is added in 03-02 once comments/likes are wired)
+ *   PostDetail    — full post view + comments + comment input (added in 03-02)
+ *     postId       — MongoDB _id of the post
+ *     focusComment — when true, the comment input is auto-focused on mount
  */
 export type CommunityStackParamList = {
   CommunityFeed: undefined;
   CreatePost: undefined;
+  PostDetail: { postId: string; focusComment?: boolean };
 };
 
 /**
@@ -138,12 +141,14 @@ const CommunityStack = createNativeStackNavigator<CommunityStackParamList>();
 
 import CommunityFeedScreen from '../screens/Community/CommunityFeedScreen';
 import CreatePostScreen from '../screens/Community/CreatePostScreen';
+import PostDetailScreen from '../screens/Community/PostDetailScreen';
 
 function CommunityStackNavigator() {
   return (
     <CommunityStack.Navigator screenOptions={{ headerShown: false }}>
       <CommunityStack.Screen name="CommunityFeed" component={CommunityFeedScreen} />
       <CommunityStack.Screen name="CreatePost" component={CreatePostScreen} />
+      <CommunityStack.Screen name="PostDetail" component={PostDetailScreen} />
     </CommunityStack.Navigator>
   );
 }

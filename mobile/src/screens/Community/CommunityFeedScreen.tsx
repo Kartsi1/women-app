@@ -174,7 +174,10 @@ export default function CommunityFeedScreen({ navigation }: Props) {
         renderItem={({ item }) => (
           <PostCard
             post={item}
-            onPress={() => {/* PostDetail wired in 03-02 */}}
+            onPress={() => navigation.navigate('PostDetail', { postId: item._id })}
+            onCommentPress={() =>
+              navigation.navigate('PostDetail', { postId: item._id, focusComment: true })
+            }
           />
         )}
         refreshControl={

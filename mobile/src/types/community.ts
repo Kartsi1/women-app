@@ -7,6 +7,18 @@
  *   The client never stores or handles raw storage paths.
  */
 
+/**
+ * Comment — a reply to a Post, stored in a separate collection on the server.
+ * authorUid — the Firebase UID of the commenter (always set server-side, never spoofable).
+ */
+export interface Comment {
+  _id: string;
+  postId: string;
+  authorUid: string;
+  text: string;
+  createdAt: string; // ISO 8601 date string
+}
+
 export interface Post {
   _id: string;
   authorUid: string;

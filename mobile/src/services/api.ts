@@ -1,7 +1,7 @@
 import { auth } from '../config/firebase';
 import type { Listing, SearchListingsParams, CreateListingPayload } from '../types/listing';
 import type { CityInfo, Message } from '../types/conversation';
-import type { Post } from '../types/community';
+import type { Post, Comment } from '../types/community';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
 
@@ -508,4 +508,85 @@ export async function createPost(
     body: formData,
   });
   return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Community Interactions API (COMM-02, COMM-03)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch all comments for a post in chronological order.
+ * GET /api/posts/:postId/comments
+ */
+export async function getComments(
+  postId: string
+): Promise<{ data?: Comment[]; error?: string }> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/posts/${postId}/comments`, { headers });
+  return res.json();
+}
+
+/**
+ * Post a new comment on a community post (COMM-02).
+ * POST /api/posts/:postId/comments
+ *
+ * Security: authorUid is set server-side from the verified token — never sent by client.
+ */
+export async function createComment(
+  postId: string,
+  text: string
+): Promise<{ data?: { id: string }; error?: string }> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/posts/${postId}/comments`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ text }),
+  });
+  return res.json();
+}
+
+/**
+ * Toggle the like state for a post (COMM-03).
+ * POST /api/posts/:postId/like
+ *
+ * The server pre-checks membership before issuing $inc so repeat calls never drift.
+ * Returns the new likeCount and whether the post is now liked by the caller.
+ */
+export async function toggleLike(
+  postId: string
+): Promise<{ data?: { likeCount: number; liked: boolean }; error?: string }> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/posts/${postId}/like`, {
+    method: 'POST',
+    headers,
+  });
+  return res.json();
+}
+
+/**
+ * Delete the authenticated user's own post.
+ * DELETE /api/posts/:postId
+ *
+ * The server enforces author-only deletion — a 403 is returned for non-authors.
+ */
+export async function deletePost(
+  postId: string
+): Promise<{ data?: { deleted: boolean }; error?: string }> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/posts/${postId}`, {
+    method: 'DELETE',
+    headers,
+  });
+  return res.json();
+}
+
+/**
+ * Report a post or comment through the existing Report flow (COMM-03, VERI-07).
+ * POST /api/users/report
+ *
+ * contentType: 'post' | 'comment' — extended in Report.js for 03-02.
+ * reporterUid is set server-side from the verified token.
+ */
+export async function reportContent(payload: ReportPayload): Promise<unknown> {
+  return reportUser(payload);
 }
