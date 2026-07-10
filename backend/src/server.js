@@ -12,6 +12,7 @@ const listingsRouter = require('./routes/listings');
 const requestsRouter = require('./routes/requests');
 const messageRequestsRouter = require('./routes/messageRequests');
 const conversationsRouter = require('./routes/conversations');
+const postsRouter = require('./routes/posts');
 
 const app = express();
 const httpServer = createServer(app);
@@ -35,6 +36,7 @@ app.use('/api/listings', listingsRouter);
 app.use('/api/requests', requestsRouter);
 app.use('/api/message-requests', messageRequestsRouter);
 app.use('/api/conversations', conversationsRouter);
+app.use('/api/posts', postsRouter);
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 const { registerSocketHandlers } = require('./socket/chatHandler');
