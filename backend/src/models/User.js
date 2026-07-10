@@ -20,6 +20,9 @@ const userSchema = new Schema({
   blockedUsers: [{ type: String }],
   hostsCount: { type: Number, default: 0 },
   tripsCount: { type: Number, default: 0 },
+  // Review aggregation fields (REVW-03): updated after each revealed review
+  avgRating:   { type: Number, default: null },  // null until first revealed review
+  reviewCount: { type: Number, default: 0 },     // count of revealed reviews only
 }, { timestamps: true });
 
 module.exports = model('User', userSchema);
