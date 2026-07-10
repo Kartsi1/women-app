@@ -12,7 +12,11 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AppStackParamList } from '../../navigation/AppNavigator';
 import { useProfileStore } from '../../store/profileStore';
 import { useAuthStore } from '../../store/authStore';
-import { getMyProfile } from '../../services/api';
+import { getMyProfile, getUserReviews } from '../../services/api';
+import { auth } from '../../config/firebase';
+import ReviewSummaryBar from '../../components/Reviews/ReviewSummaryBar';
+import ReviewCard from '../../components/Reviews/ReviewCard';
+import type { UserReviews } from '../../types/community';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Profile'>;
 
@@ -29,14 +33,18 @@ type Props = NativeStackScreenProps<AppStackParamList, 'Profile'>;
  *
  * Loads profile data from the backend on mount and caches it in profileStore.
  */
+const MAX_PROFILE_REVIEWS = 10;
+
 export default function ProfileScreen({ navigation }: Props) {
   const { profile, setProfile } = useProfileStore();
   const { isVerified } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [userReviews, setUserReviews] = useState<UserReviews | null>(null);
 
   useEffect(() => {
     loadProfile();
+    loadReviews();
   }, []);
 
   async function loadProfile() {
@@ -53,6 +61,19 @@ export default function ProfileScreen({ navigation }: Props) {
       setError('Failed to load profile. Please try again.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadReviews() {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    try {
+      const res = await getUserReviews(uid);
+      if (res.data) {
+        setUserReviews(res.data);
+      }
+    } catch {
+      // Reviews failing to load is non-fatal — profile still renders
     }
   }
 
@@ -101,6 +122,30 @@ export default function ProfileScreen({ navigation }: Props) {
       </Text>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      {/* Reviews section (REVW-01, REVW-02, REVW-03) */}
+      {/* Only rendered when there are revealed reviews — no section for new users */}
+      {userReviews && userReviews.reviewCount > 0 ? (
+        <View style={styles.reviewsSection}>
+          <ReviewSummaryBar
+            avgRating={userReviews.avgRating}
+            revealedReviewCount={userReviews.reviewCount}
+          />
+          <Text style={styles.reviewsHeader}>Reviews</Text>
+          {/* Show up to MAX_PROFILE_REVIEWS revealed reviews, reverse-chronological */}
+          {userReviews.reviews.slice(0, MAX_PROFILE_REVIEWS).map((review, idx) => (
+            <ReviewCard
+              key={idx}
+              review={review}
+              label="Review"
+            />
+          ))}
+          {/* "See all reviews" link when there are more than the cap */}
+          {userReviews.reviews.length > MAX_PROFILE_REVIEWS ? (
+            <Text style={styles.seeAllLink}>See all reviews</Text>
+          ) : null}
+        </View>
+      ) : null}
 
       <TouchableOpacity
         style={styles.editButton}
@@ -188,6 +233,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 12,
     textAlign: 'center',
+  },
+  reviewsSection: {
+    width: '100%',
+    marginBottom: 24,
+    alignItems: 'stretch',
+  },
+  reviewsHeader: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#111111',
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  seeAllLink: {
+    fontSize: 14,
+    color: '#6200ea',
+    textAlign: 'center',
+    marginTop: 4,
+    paddingVertical: 8,
   },
   editButton: {
     backgroundColor: '#6200ea',

@@ -5,6 +5,7 @@ import { Text } from 'react-native';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import EditProfileScreen from '../screens/Profile/EditProfileScreen';
 import ViewProfileScreen from '../screens/Profile/ViewProfileScreen';
+import ReviewComposeScreen from '../screens/Reviews/ReviewComposeScreen';
 import { connectSocket } from '../services/socketService';
 import { useAuthStore } from '../store/authStore';
 
@@ -16,11 +17,21 @@ import { useAuthStore } from '../store/authStore';
  * Param list for the Profile nested native-stack.
  * Preserves the existing EditProfile / ViewProfile routes so those screens
  * remain reachable from ProfileScreen.
+ *
+ * ReviewCompose — user composes an immutable star+text review for a completed stay.
+ *   stayRequestId : MongoDB ObjectId of the stay (required)
+ *   subjectUid    : Firebase UID of the person being reviewed (optional — server derives it too)
+ *   subjectName   : Display name shown in the compose header (optional)
  */
 export type AppStackParamList = {
   Profile: undefined;
   EditProfile: undefined;
   ViewProfile: { uid: string };
+  ReviewCompose: {
+    stayRequestId: string;
+    subjectUid?: string;
+    subjectName?: string;
+  };
 };
 
 /**
@@ -165,6 +176,7 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="Profile" component={ProfileScreen} />
       <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
       <ProfileStack.Screen name="ViewProfile" component={ViewProfileScreen} />
+      <ProfileStack.Screen name="ReviewCompose" component={ReviewComposeScreen} />
     </ProfileStack.Navigator>
   );
 }
