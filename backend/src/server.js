@@ -13,6 +13,7 @@ const requestsRouter = require('./routes/requests');
 const messageRequestsRouter = require('./routes/messageRequests');
 const conversationsRouter = require('./routes/conversations');
 const postsRouter = require('./routes/posts');
+const commentsRouter = require('./routes/comments');
 
 const app = express();
 const httpServer = createServer(app);
@@ -37,6 +38,7 @@ app.use('/api/requests', requestsRouter);
 app.use('/api/message-requests', messageRequestsRouter);
 app.use('/api/conversations', conversationsRouter);
 app.use('/api/posts', postsRouter);
+app.use('/api/posts/:id/comments', commentsRouter);
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 const { registerSocketHandlers } = require('./socket/chatHandler');

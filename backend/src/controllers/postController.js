@@ -1,4 +1,5 @@
 const Post = require('../models/Post');
+const Comment = require('../models/Comment');
 const { uploadFile, getSignedUrl } = require('../services/storageService');
 
 const PAGE_SIZE = 20;
@@ -123,4 +124,84 @@ async function getFeed(req, res) {
   }
 }
 
-module.exports = { createPost, getFeed };
+/**
+ * POST /api/posts/:id/like
+ *
+ * Toggle the like state for the authenticated user on a post.
+ *
+ * Idempotency (T-03-02-01): we PRE-CHECK likedBy.includes(uid) before deciding
+ * which MongoDB update to issue. This prevents counter drift when a client sends
+ * repeated requests — a $inc:+1 is issued AT MOST ONCE per like, and a $inc:-1
+ * is issued AT MOST ONCE per unlike, regardless of how many times the endpoint
+ * is called in a row with the same intent.
+ */
+async function toggleLike(req, res) {
+  try {
+    const { uid } = req.user;
+    const { id } = req.params;
+
+    // Load the post to check current like state (pre-check before $inc — T-03-02-01)
+    const post = await Post.findById(id).select('likedBy').lean();
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    // Mandatory pre-check: determine current like state BEFORE issuing any update.
+    // Without this check a rapid sequence of two POST /:id/like requests could both
+    // pass the $addToSet (no-op on second) but both issue $inc:+1 — inflating the count.
+    const alreadyLiked = post.likedBy.includes(uid);
+
+    const update = alreadyLiked
+      ? { $pull: { likedBy: uid }, $inc: { likeCount: -1 } }
+      : { $addToSet: { likedBy: uid }, $inc: { likeCount: 1 } };
+
+    const updated = await Post.findByIdAndUpdate(id, update, { new: true })
+      .select('likeCount likedBy')
+      .lean();
+
+    return res.json({ data: { likeCount: updated.likeCount, liked: !alreadyLiked } });
+  } catch (err) {
+    console.error('[toggleLike]', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * DELETE /api/posts/:id
+ *
+ * Delete a post and all its comments.
+ *
+ * Security (T-03-02-03): only the post author may delete. Admin deletion is
+ * restricted to the server-side author check (req.user.isAdmin is not set by
+ * the current verifyFirebaseToken middleware — admin checks use the adminRouter
+ * with a separate admin token). Author-only deletion is the safe default for MVP.
+ */
+async function deletePost(req, res) {
+  try {
+    const { uid } = req.user;
+    const { id } = req.params;
+
+    const post = await Post.findById(id).select('authorUid').lean();
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    // Only the post author may delete (T-03-02-03)
+    if (post.authorUid !== uid) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    // Remove the post and all its comments atomically
+    await Promise.all([
+      Post.findByIdAndDelete(id),
+      Comment.deleteMany({ postId: id }),
+    ]);
+
+    return res.json({ data: { deleted: true } });
+  } catch (err) {
+    console.error('[deletePost]', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+module.exports = { createPost, getFeed, toggleLike, deletePost };

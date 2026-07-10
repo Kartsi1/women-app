@@ -6,7 +6,7 @@ const { Schema, model } = require('mongoose');
  * Fields:
  *   reporterUid  — Firebase UID of the user filing the report (required, T-07-02)
  *   reportedUid  — Firebase UID of the reported user (null for content-only reports)
- *   contentType  — what is being reported: 'user' | 'listing' | 'message'
+ *   contentType  — what is being reported: 'user' | 'listing' | 'message' | 'post' | 'comment'
  *   contentId    — ID of the reported content item (null for user-only reports)
  *   reason       — human-readable explanation (required, T-07-04)
  *   status       — workflow state for admins: 'open' (default) | 'resolved'
@@ -17,7 +17,7 @@ const reportSchema = new Schema(
   {
     reporterUid:  { type: String, required: true },
     reportedUid:  { type: String, default: null },
-    contentType:  { type: String, enum: ['listing', 'message', 'user'] },
+    contentType:  { type: String, enum: ['listing', 'message', 'user', 'post', 'comment'] },
     contentId:    { type: String, default: null },
     reason:       { type: String, required: true },
     status:       { type: String, enum: ['open', 'resolved'], default: 'open' },
