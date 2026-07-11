@@ -72,3 +72,63 @@ export async function rejectUser(uid: string, reason: string): Promise<ActionRes
   });
   return res.json() as Promise<ActionResponse>;
 }
+
+export interface AdminUser {
+  uid: string;
+  email: string;
+  displayName: string | null;
+  homeCity: string | null;
+  verificationStatus: 'none' | 'pending' | 'approved' | 'rejected';
+  banned: boolean;
+  hostsCount: number;
+  tripsCount: number;
+  createdAt: string;
+}
+
+export interface UsersResponse {
+  users?: AdminUser[];
+  error?: string;
+}
+
+export async function getUsers(): Promise<UsersResponse> {
+  const res = await authedFetch('/api/admin/users');
+  return res.json() as Promise<UsersResponse>;
+}
+
+export async function banUser(uid: string): Promise<ActionResponse> {
+  const res = await authedFetch(`/api/admin/ban/${uid}`, { method: 'POST' });
+  return res.json() as Promise<ActionResponse>;
+}
+
+export async function unbanUser(uid: string): Promise<ActionResponse> {
+  const res = await authedFetch(`/api/admin/unban/${uid}`, { method: 'POST' });
+  return res.json() as Promise<ActionResponse>;
+}
+
+export interface Report {
+  id: string;
+  reporterUid: string;
+  reporterName: string;
+  reportedUid: string | null;
+  reportedName: string | null;
+  contentType: 'listing' | 'message' | 'user' | 'post' | 'comment' | null;
+  contentId: string | null;
+  reason: string;
+  status: 'open' | 'resolved';
+  createdAt: string;
+}
+
+export interface ReportsResponse {
+  reports?: Report[];
+  error?: string;
+}
+
+export async function getReports(): Promise<ReportsResponse> {
+  const res = await authedFetch('/api/admin/reports');
+  return res.json() as Promise<ReportsResponse>;
+}
+
+export async function resolveReport(id: string): Promise<ActionResponse> {
+  const res = await authedFetch(`/api/admin/reports/${id}/resolve`, { method: 'POST' });
+  return res.json() as Promise<ActionResponse>;
+}

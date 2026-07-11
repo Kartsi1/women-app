@@ -18,6 +18,9 @@ const userSchema = new Schema({
   rejectionReason: { type: String },
   expoPushToken: { type: String },
   blockedUsers: [{ type: String }],
+  // Admin ban — when true the user is blocked from all authenticated endpoints
+  // (enforced in verifyFirebaseToken). Reversible via admin unban.
+  banned: { type: Boolean, default: false },
   hostsCount: { type: Number, default: 0 },
   tripsCount: { type: Number, default: 0 },
   // Review aggregation fields (REVW-03): updated after each revealed review

@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { getAuth } = require('firebase-admin/auth');
 const User = require('../models/User');
+const Report = require('../models/Report');
 const { getSignedUrl } = require('../services/storageService');
 const { sendPushNotification } = require('../services/notificationService');
 
@@ -138,4 +139,127 @@ async function rejectUser(req, res) {
   }
 }
 
-module.exports = { login, getQueue, approveUser, rejectUser };
+/**
+ * GET /api/admin/users
+ * Return all users (newest first) for the admin panel user list.
+ * Admin-session gated; excludes verification document URLs (queue endpoint covers those).
+ */
+async function getUsers(req, res) {
+  try {
+    const users = await User.find({}).sort({ createdAt: -1 }).lean();
+    const list = users.map((u) => ({
+      uid: u.firebaseUid,
+      email: u.email,
+      displayName: u.displayName || null,
+      homeCity: u.homeCity || null,
+      verificationStatus: u.verificationStatus,
+      banned: u.banned ?? false,
+      hostsCount: u.hostsCount ?? 0,
+      tripsCount: u.tripsCount ?? 0,
+      createdAt: u.createdAt,
+    }));
+    res.json({ users: list });
+  } catch (err) {
+    console.error('[admin getUsers]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * POST /api/admin/ban/:uid  — set banned=true.
+ * POST /api/admin/unban/:uid — set banned=false.
+ * Banned users are blocked from all authenticated endpoints (verifyFirebaseToken).
+ */
+async function setBanned(uid, banned, res) {
+  const user = await User.findOneAndUpdate(
+    { firebaseUid: uid },
+    { banned },
+    { new: true }
+  ).lean();
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  return res.json({ status: banned ? 'banned' : 'unbanned' });
+}
+
+async function banUser(req, res) {
+  try {
+    return await setBanned(req.params.uid, true, res);
+  } catch (err) {
+    console.error('[admin banUser]', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+async function unbanUser(req, res) {
+  try {
+    return await setBanned(req.params.uid, false, res);
+  } catch (err) {
+    console.error('[admin unbanUser]', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * GET /api/admin/reports — all reports, newest first, with reporter/reported names.
+ */
+async function getReports(req, res) {
+  try {
+    const reports = await Report.find({}).sort({ createdAt: -1 }).lean();
+    const uids = [
+      ...new Set(
+        reports.flatMap((r) => [r.reporterUid, r.reportedUid]).filter(Boolean)
+      ),
+    ];
+    const users = await User.find({ firebaseUid: { $in: uids } })
+      .select('firebaseUid displayName email')
+      .lean();
+    const nameMap = Object.fromEntries(
+      users.map((u) => [u.firebaseUid, u.displayName || u.email])
+    );
+    const list = reports.map((r) => ({
+      id: String(r._id),
+      reporterUid: r.reporterUid,
+      reporterName: nameMap[r.reporterUid] || r.reporterUid,
+      reportedUid: r.reportedUid,
+      reportedName: r.reportedUid ? nameMap[r.reportedUid] || r.reportedUid : null,
+      contentType: r.contentType || null,
+      contentId: r.contentId,
+      reason: r.reason,
+      status: r.status,
+      createdAt: r.createdAt,
+    }));
+    res.json({ reports: list });
+  } catch (err) {
+    console.error('[admin getReports]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * POST /api/admin/reports/:id/resolve — mark a report resolved.
+ */
+async function resolveReport(req, res) {
+  try {
+    const rep = await Report.findByIdAndUpdate(
+      req.params.id,
+      { status: 'resolved' },
+      { new: true }
+    ).lean();
+    if (!rep) return res.status(404).json({ error: 'Report not found' });
+    res.json({ status: 'resolved' });
+  } catch (err) {
+    console.error('[admin resolveReport]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+module.exports = {
+  login,
+  getQueue,
+  approveUser,
+  rejectUser,
+  getUsers,
+  banUser,
+  unbanUser,
+  getReports,
+  resolveReport,
+};

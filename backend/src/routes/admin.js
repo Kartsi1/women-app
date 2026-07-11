@@ -28,10 +28,21 @@ router.post('/login', adminController.login);
 // GET /api/admin/verification-queue — requires admin session
 router.get('/verification-queue', verifyAdminSession, adminController.getQueue);
 
+// GET /api/admin/users — full user list, requires admin session
+router.get('/users', verifyAdminSession, adminController.getUsers);
+
 // POST /api/admin/approve/:uid — requires admin session
 router.post('/approve/:uid', verifyAdminSession, adminController.approveUser);
 
 // POST /api/admin/reject/:uid — requires admin session
 router.post('/reject/:uid', verifyAdminSession, adminController.rejectUser);
+
+// POST /api/admin/ban/:uid | /unban/:uid — requires admin session
+router.post('/ban/:uid', verifyAdminSession, adminController.banUser);
+router.post('/unban/:uid', verifyAdminSession, adminController.unbanUser);
+
+// GET /api/admin/reports — list reports; POST /reports/:id/resolve — mark resolved
+router.get('/reports', verifyAdminSession, adminController.getReports);
+router.post('/reports/:id/resolve', verifyAdminSession, adminController.resolveReport);
 
 module.exports = router;

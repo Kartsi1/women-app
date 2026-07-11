@@ -43,6 +43,25 @@ firebaseAuth.getAuth = () => ({
   },
 });
 
+// Step 2b: Stub the User model so verifyFirebaseToken's ban lookup does not hit a
+// (non-existent) DB connection and hang. Default: no matching user → not banned.
+const path = require('path');
+const userModelPath = path.resolve(__dirname, '../src/models/User');
+let stubbedBanned = false; // toggle per-test if needed
+require.cache[require.resolve(userModelPath)] = {
+  id: require.resolve(userModelPath),
+  filename: require.resolve(userModelPath),
+  loaded: true,
+  exports: {
+    findOne() {
+      return {
+        select() { return this; },
+        lean() { return Promise.resolve(stubbedBanned ? { banned: true } : null); },
+      };
+    },
+  },
+};
+
 // Step 3: Now require auth middleware (picks up the patched firebase-admin/auth).
 const { verifyFirebaseToken, requireVerified } = require('../src/middleware/auth');
 
