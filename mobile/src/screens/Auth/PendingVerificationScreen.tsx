@@ -1,5 +1,7 @@
 import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { signOut } from 'firebase/auth';
+import { auth } from '../../config/firebase';
 import { VerificationStackParamList } from '../../navigation/VerificationNavigator';
 import { useAuthStore } from '../../store/authStore';
 
@@ -104,6 +106,12 @@ export default function PendingVerificationScreen({ navigation, route }: Props) 
           <Text style={styles.resubmitButtonOutlineText}>Replace submitted documents</Text>
         </TouchableOpacity>
       ) : null}
+
+      {/* Escape hatch — sign out to return to login / use a different account.
+          Without this an unverified user is trapped on this screen (no logout). */}
+      <TouchableOpacity style={styles.signOutButton} onPress={() => signOut(auth)}>
+        <Text style={styles.signOutText}>Sign out</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -215,6 +223,17 @@ const styles = StyleSheet.create({
   },
   resubmitButtonOutlineText: {
     color: '#6200ea',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  signOutButton: {
+    marginTop: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  signOutText: {
+    color: '#888',
     fontSize: 15,
     fontWeight: '600',
   },

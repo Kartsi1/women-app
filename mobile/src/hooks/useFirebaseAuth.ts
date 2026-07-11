@@ -4,10 +4,18 @@ import * as Notifications from 'expo-notifications';
 import { auth } from '../config/firebase';
 import { useAuthStore } from '../store/authStore';
 import { registerForPushNotifications } from '../services/push';
+import { getMyProfile } from '../services/api';
 import { navigationRef } from '../navigation/navigationRef';
 
+type ProfileResponse = {
+  data?: {
+    verificationStatus?: 'none' | 'pending' | 'approved' | 'rejected';
+    rejectionReason?: string | null;
+  };
+};
+
 export function useFirebaseAuth() {
-  const { setUser, setVerified, clear, setExpoPushToken } = useAuthStore();
+  const { setUser, setVerified, setVerificationStatus, clear, setExpoPushToken } = useAuthStore();
 
   // Subscribe to Firebase auth state changes and sync verification status from token claims.
   // After a successful login, register for push notifications once per session.
@@ -17,6 +25,21 @@ export function useFirebaseAuth() {
         const tokenResult = await getIdTokenResult(user);
         setUser(user);
         setVerified(!!tokenResult.claims.isVerified);
+
+        // Restore verification workflow state from the backend so a reload /
+        // cold-start lands on the correct verification screen (pending vs upload)
+        // instead of always resetting to DocumentUpload. Fails soft to 'none'.
+        try {
+          const profile = (await getMyProfile()) as ProfileResponse;
+          if (profile?.data?.verificationStatus) {
+            setVerificationStatus(
+              profile.data.verificationStatus,
+              profile.data.rejectionReason ?? null,
+            );
+          }
+        } catch {
+          // leave default; VerificationNavigator falls back to DocumentUpload
+        }
 
         // Register for push notifications on login. Guard against duplicate
         // registration within the same session by checking the store directly.

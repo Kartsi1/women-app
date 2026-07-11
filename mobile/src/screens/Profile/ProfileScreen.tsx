@@ -13,6 +13,7 @@ import { AppStackParamList } from '../../navigation/AppNavigator';
 import { useProfileStore } from '../../store/profileStore';
 import { useAuthStore } from '../../store/authStore';
 import { getMyProfile, getUserReviews } from '../../services/api';
+import { signOut } from 'firebase/auth';
 import { auth } from '../../config/firebase';
 import ReviewSummaryBar from '../../components/Reviews/ReviewSummaryBar';
 import ReviewCard from '../../components/Reviews/ReviewCard';
@@ -153,6 +154,11 @@ export default function ProfileScreen({ navigation }: Props) {
       >
         <Text style={styles.editButtonText}>Edit Profile</Text>
       </TouchableOpacity>
+
+      {/* Sign out — returns to the login screen; lets the user switch accounts. */}
+      <TouchableOpacity style={styles.signOutButton} onPress={() => signOut(auth)}>
+        <Text style={styles.signOutText}>Sign out</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -263,6 +269,17 @@ const styles = StyleSheet.create({
   editButtonText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  signOutButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+  },
+  signOutText: {
+    color: '#888',
+    fontSize: 15,
     fontWeight: '600',
   },
 });

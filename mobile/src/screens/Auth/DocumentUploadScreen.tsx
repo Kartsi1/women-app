@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { signOut } from 'firebase/auth';
+import { auth } from '../../config/firebase';
 import { VerificationStackParamList } from '../../navigation/VerificationNavigator';
 import { uploadVerificationDocs } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
@@ -155,6 +157,11 @@ export default function DocumentUploadScreen({ navigation }: Props) {
           <Text style={styles.submitButtonText}>Submit for verification</Text>
         )}
       </TouchableOpacity>
+
+      {/* Escape hatch — sign out to return to login / use a different account. */}
+      <TouchableOpacity style={styles.signOutButton} onPress={() => signOut(auth)} disabled={loading}>
+        <Text style={styles.signOutText}>Sign out</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -177,6 +184,16 @@ const styles = StyleSheet.create({
     color: '#555',
     lineHeight: 22,
     marginBottom: 32,
+  },
+  signOutButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  signOutText: {
+    color: '#888',
+    fontSize: 15,
+    fontWeight: '600',
   },
   slot: {
     marginBottom: 28,

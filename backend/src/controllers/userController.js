@@ -173,6 +173,14 @@ async function getProfile(req, res) {
       tripsCount: target.tripsCount,
     };
 
+    // Own profile only: expose the verification workflow state so the client can
+    // restore the correct verification screen after a reload / cold-start.
+    // Never leak another user's verificationStatus.
+    if (req.params.uid === req.user.uid) {
+      data.verificationStatus = target.verificationStatus;
+      data.rejectionReason = target.rejectionReason ?? null;
+    }
+
     res.json({ data });
   } catch (err) {
     console.error('[getProfile]', err);
