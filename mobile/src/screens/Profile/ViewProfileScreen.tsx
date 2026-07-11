@@ -11,12 +11,17 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { AppStackParamList } from '../../navigation/AppNavigator';
 import { getUserProfile, blockUser, reportUser } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 
-type Props = NativeStackScreenProps<AppStackParamList, 'ViewProfile'>;
+// Structural props (not tied to one navigator's param list) so this screen can be
+// registered in every stack — Community, Housing, Messages, Profile — and opened
+// from any of them. It only needs the uid param + goBack; the "Send message
+// request" cross-tab navigate is done through a cast below.
+type Props = {
+  route: { params: { uid: string } };
+  navigation: { goBack: () => void };
+};
 
 /**
  * Public profile shape returned by GET /api/users/:uid.

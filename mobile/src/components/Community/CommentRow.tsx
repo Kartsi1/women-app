@@ -22,7 +22,10 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { Comment } from '../../types/community';
+import type { CommunityStackParamList } from '../../navigation/AppNavigator';
 import { reportContent } from '../../services/api';
 
 interface Props {
@@ -44,9 +47,12 @@ function formatTimestamp(isoString: string): string {
 }
 
 export default function CommentRow({ comment }: Props) {
+  const navigation = useNavigation<NativeStackNavigationProp<CommunityStackParamList>>();
   const [reportVisible, setReportVisible] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportSending, setReportSending] = useState(false);
+
+  const openProfile = () => navigation.navigate('ViewProfile', { uid: comment.authorUid });
 
   async function handleSubmitReport() {
     if (!reportReason.trim()) return;
@@ -72,15 +78,20 @@ export default function CommentRow({ comment }: Props) {
     <>
       <View style={styles.row}>
         {/* Avatar — 28×28dp */}
-        <View style={styles.avatar}>
+        <TouchableOpacity style={styles.avatar} onPress={openProfile}>
           <Text style={styles.avatarText}>
             {(comment.authorName || 'Member').charAt(0).toUpperCase()}
           </Text>
-        </View>
+        </TouchableOpacity>
 
         {/* Content */}
         <View style={styles.content}>
-          <Text style={styles.authorName} numberOfLines={1}>
+          <Text
+            style={styles.authorName}
+            numberOfLines={1}
+            onPress={openProfile}
+            accessibilityLabel={`View ${comment.authorName || 'member'}'s profile`}
+          >
             {comment.authorName || 'Member'}
           </Text>
           <Text style={styles.commentText}>{comment.text}</Text>

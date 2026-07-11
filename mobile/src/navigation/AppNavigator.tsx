@@ -50,6 +50,7 @@ export type HousingStackParamList = {
   StayRequestCompose: { listingId: string };
   RequestStatus: { requestId: string; listingId?: string };
   HostInbox: undefined;
+  ViewProfile: { uid: string };
 };
 
 /**
@@ -67,6 +68,7 @@ export type MessagesStackParamList = {
   MessageRequestCompose: { recipientUid: string };
   MessageRequestInbox: undefined;
   CityGroupChat: undefined;
+  ViewProfile: { uid: string };
 };
 
 /**
@@ -82,6 +84,7 @@ export type CommunityStackParamList = {
   CommunityFeed: undefined;
   CreatePost: undefined;
   PostDetail: { postId: string; focusComment?: boolean };
+  ViewProfile: { uid: string };
 };
 
 /**
@@ -116,6 +119,7 @@ function HousingStackNavigator() {
       <HousingStack.Screen name="StayRequestCompose" component={StayRequestComposeScreen} />
       <HousingStack.Screen name="RequestStatus" component={RequestStatusScreen} />
       <HousingStack.Screen name="HostInbox" component={HostInboxScreen} />
+      <HousingStack.Screen name="ViewProfile" component={ViewProfileScreen} />
     </HousingStack.Navigator>
   );
 }
@@ -140,6 +144,7 @@ function MessagesStackNavigator() {
       <MessagesStack.Screen name="MessageRequestCompose" component={MessageRequestComposeScreen} />
       <MessagesStack.Screen name="MessageRequestInbox" component={MessageRequestInboxScreen} />
       <MessagesStack.Screen name="CityGroupChat" component={CityGroupChatScreen} />
+      <MessagesStack.Screen name="ViewProfile" component={ViewProfileScreen} />
     </MessagesStack.Navigator>
   );
 }
@@ -160,6 +165,7 @@ function CommunityStackNavigator() {
       <CommunityStack.Screen name="CommunityFeed" component={CommunityFeedScreen} />
       <CommunityStack.Screen name="CreatePost" component={CreatePostScreen} />
       <CommunityStack.Screen name="PostDetail" component={PostDetailScreen} />
+      <CommunityStack.Screen name="ViewProfile" component={ViewProfileScreen} />
     </CommunityStack.Navigator>
   );
 }

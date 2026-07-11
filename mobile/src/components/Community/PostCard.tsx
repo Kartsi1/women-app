@@ -27,7 +27,10 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { Post } from '../../types/community';
+import type { CommunityStackParamList } from '../../navigation/AppNavigator';
 import { toggleLike, reportContent } from '../../services/api';
 import { useFeedStore } from '../../store/feedStore';
 import { useAuthStore } from '../../store/authStore';
@@ -55,6 +58,7 @@ function formatTimestamp(isoString: string): string {
 
 export default function PostCard({ post, onPress, onCommentPress }: Props) {
   const { user } = useAuthStore();
+  const navigation = useNavigation<NativeStackNavigationProp<CommunityStackParamList>>();
   const updatePost = useFeedStore((s) => s.updatePost);
 
   // Report bottom-sheet state
@@ -140,7 +144,11 @@ export default function PostCard({ post, onPress, onCommentPress }: Props) {
       >
         {/* Header row: author + timestamp + report icon */}
         <View style={styles.header}>
-          <View style={styles.authorInfo}>
+          <TouchableOpacity
+            style={styles.authorInfo}
+            onPress={() => navigation.navigate('ViewProfile', { uid: post.authorUid })}
+            accessibilityLabel={`View ${post.authorName || 'member'}'s profile`}
+          >
             {/* Avatar placeholder — 36×36dp */}
             <View style={styles.avatar} accessibilityLabel="Author avatar">
               <Text style={styles.avatarText}>
@@ -155,7 +163,7 @@ export default function PostCard({ post, onPress, onCommentPress }: Props) {
                 {formatTimestamp(post.createdAt)}
               </Text>
             </View>
-          </View>
+          </TouchableOpacity>
           {/* Report icon — 44×44dp touch target (COMM-03) */}
           <TouchableOpacity
             style={styles.reportButton}

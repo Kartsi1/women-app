@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MessagesStackParamList } from '../../navigation/AppNavigator';
@@ -50,7 +51,7 @@ type Props = NativeStackScreenProps<MessagesStackParamList, 'DirectMessage'>;
  *   - senderUid for own messages is taken from authStore (same uid the server trusts
  *     from the socket token), not hardcoded in events
  */
-export default function DirectMessageScreen({ route }: Props) {
+export default function DirectMessageScreen({ route, navigation }: Props) {
   const { conversationId, otherUid } = route.params;
   const currentUserUid = useAuthStore((s) => s.user?.uid) ?? '';
 
@@ -187,6 +188,19 @@ export default function DirectMessageScreen({ route }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
+      {/* Header: back + tap to view the other member's profile */}
+      <View style={styles.headerBar}>
+        <TouchableOpacity onPress={() => navigation.goBack()} accessibilityLabel="Back">
+          <Text style={styles.headerBack}>‹ Back</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('ViewProfile', { uid: otherUid })}
+          accessibilityLabel="View profile"
+        >
+          <Text style={styles.headerProfile}>View profile</Text>
+        </TouchableOpacity>
+      </View>
+
       {error && (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{error}</Text>
@@ -217,6 +231,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  headerBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  headerBack: {
+    fontSize: 16,
+    color: '#6200ea',
+    fontWeight: '600',
+  },
+  headerProfile: {
+    fontSize: 15,
+    color: '#6200ea',
+    fontWeight: '600',
   },
   centered: {
     flex: 1,

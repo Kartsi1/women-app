@@ -144,6 +144,17 @@ export default function ListingDetailScreen({ route, navigation }: Props) {
             <Text style={styles.areaLabel}>{areaLabel}</Text>
           )}
 
+          {/* View host profile — hidden on your own listing */}
+          {!listing.isOwner && listing.ownerUid ? (
+            <Text
+              style={styles.hostLink}
+              onPress={() => navigation.navigate('ViewProfile', { uid: listing.ownerUid })}
+              accessibilityLabel="View host profile"
+            >
+              View host profile
+            </Text>
+          ) : null}
+
           {/* Address reveal card (green) when accepted; SafetyChip (amber) otherwise.
               Mutually exclusive — server controls which field is populated (T-02-03-01). */}
           {listing.addressRevealed && listing.exactAddress ? (
@@ -296,6 +307,12 @@ const styles = StyleSheet.create({
     color: '#777777',
     marginBottom: 16,
     textTransform: 'capitalize',
+  },
+  hostLink: {
+    fontSize: 15,
+    color: '#6200ea',
+    fontWeight: '600',
+    marginBottom: 16,
   },
   safetyChipContainer: {
     marginBottom: 20,
