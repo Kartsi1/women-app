@@ -28,6 +28,7 @@ module.exports = {
       supportsTablet: true,
     },
     android: {
+      package: 'com.kartsi.mobile',
       adaptiveIcon: {
         backgroundColor: '#E6F4FE',
         foregroundImage: './assets/android-icon-foreground.png',

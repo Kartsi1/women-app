@@ -1,9 +1,34 @@
+import { Platform } from 'react-native';
 import { auth } from '../config/firebase';
 import type { Listing, SearchListingsParams, CreateListingPayload } from '../types/listing';
 import type { CityInfo, Message } from '../types/conversation';
 import type { Post, Comment, StayReviews, UserReviews } from '../types/community';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
+
+/**
+ * Append a local file URI to a FormData in a platform-correct way.
+ *
+ * On native, RN's fetch understands the `{ uri, type, name }` shape directly.
+ * On web, that shape serialises to the literal string "[object Object]" — the
+ * backend then receives a text field, not a file, and multipart parsing fails
+ * (e.g. "Both idDocument and selfie are required"). On web we must fetch the URI
+ * into a real Blob and append that.
+ */
+async function appendFile(
+  formData: FormData,
+  field: string,
+  uri: string,
+  name: string,
+  type = 'image/jpeg',
+): Promise<void> {
+  if (Platform.OS === 'web') {
+    const blob = await (await fetch(uri)).blob();
+    formData.append(field, blob, name);
+  } else {
+    formData.append(field, { uri, type, name } as unknown as Blob);
+  }
+}
 
 async function authHeaders(): Promise<Record<string, string>> {
   const token = await auth.currentUser?.getIdToken();
@@ -30,8 +55,8 @@ export async function registerUser(): Promise<unknown> {
 export async function uploadVerificationDocs(idUri: string, selfieUri: string): Promise<unknown> {
   const token = await auth.currentUser?.getIdToken();
   const formData = new FormData();
-  formData.append('idDocument', { uri: idUri, type: 'image/jpeg', name: 'id.jpg' } as unknown as Blob);
-  formData.append('selfie', { uri: selfieUri, type: 'image/jpeg', name: 'selfie.jpg' } as unknown as Blob);
+  await appendFile(formData, 'idDocument', idUri, 'id.jpg');
+  await appendFile(formData, 'selfie', selfieUri, 'selfie.jpg');
   const res = await fetch(`${API_BASE_URL}/api/users/verification-docs`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
@@ -103,7 +128,7 @@ export async function getUserProfile(uid: string): Promise<unknown> {
 export async function uploadProfilePhoto(uri: string): Promise<unknown> {
   const token = await auth.currentUser?.getIdToken();
   const formData = new FormData();
-  formData.append('photo', { uri, type: 'image/jpeg', name: 'photo.jpg' } as unknown as Blob);
+  await appendFile(formData, 'photo', uri, 'photo.jpg');
   const res = await fetch(`${API_BASE_URL}/api/users/profile-photo`, {
     method: 'POST',
     // Authorization only — no Content-Type; let FormData set the boundary (Pitfall 5)
@@ -206,13 +231,9 @@ export async function createListing(
 
   // Append each photo as a multipart file
   if (payload.photoUris) {
-    payload.photoUris.forEach((uri, i) => {
-      formData.append('photos', {
-        uri,
-        type: 'image/jpeg',
-        name: `photo_${i}.jpg`,
-      } as unknown as Blob);
-    });
+    for (let i = 0; i < payload.photoUris.length; i++) {
+      await appendFile(formData, 'photos', payload.photoUris[i], `photo_${i}.jpg`);
+    }
   }
 
   const res = await fetch(`${API_BASE_URL}/api/listings`, {
@@ -495,11 +516,7 @@ export async function createPost(
   const formData = new FormData();
   formData.append('text', text);
   if (photoUri) {
-    formData.append('photo', {
-      uri: photoUri,
-      type: 'image/jpeg',
-      name: 'photo.jpg',
-    } as unknown as Blob);
+    await appendFile(formData, 'photo', photoUri, 'photo.jpg');
   }
   const res = await fetch(`${API_BASE_URL}/api/posts`, {
     method: 'POST',

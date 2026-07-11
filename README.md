@@ -185,19 +185,41 @@ Mobile подключается к эмуляторам автоматическ
 
 ## Открыть приложение с телефона
 
-Телефон и компьютер должны быть в одной Wi-Fi сети.
+> ⚠ **Expo Go не подходит.** Проект на Expo SDK 57 / RN 0.86 и использует нативный `react-native-maps` — generic Expo Go его не запустит («requires a newer version of Expo Go»). Нужен **собственный dev build** (это по-прежнему managed workflow, не ejection).
 
-1. Узнать LAN IP компьютера — `make ip` (например `192.168.10.93`).
-2. В `mobile/.env` прописать этот IP:
+### Вариант A — нативный dev build (полный функционал, карты)
+
+Разовая настройка Android-тулчейна (Linux):
+
+1. Установить Android Studio → пройти Setup Wizard (качает SDK в `~/Android/Sdk`).
+2. В **SDK Manager → SDK Tools** добавить **NDK (Side by side)** + **CMake** (нужны для нативной сборки RN). Проект собран на `ndk;27.1.12297006` + `cmake;3.22.1`.
+3. Env (в `~/.bashrc`):
+   ```bash
+   export ANDROID_HOME="$HOME/Android/Sdk"
+   export ANDROID_SDK_ROOT="$ANDROID_HOME"
+   export PATH="$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin"
    ```
-   EXPO_PUBLIC_API_BASE_URL=http://192.168.10.93:3000
-   ```
-   Из него mobile выводит и адрес эмуляторов Firebase (`192.168.10.93:9099` / `:9199`).
-3. `make dev` (или `make mobile`) → в приложении **Expo Go** на телефоне отсканировать QR-код из терминала.
+4. Телефон: включить **Developer options → USB debugging**, подключить по USB, разрешить отладку. Проверка: `adb devices`.
 
-Эмуляторы Firebase слушают `0.0.0.0` (`firebase.json`) — доступны в локальной сети; backend слушает все интерфейсы; CORS в dev открыт.
+Сборка и запуск (из `mobile/`):
+```bash
+npx expo run:android
+```
+Первый раз долго (Gradle тянет зависимости + компилит натив). Дальше — `npx expo start --dev-client`. Пакет приложения: `com.kartsi.mobile`. Сгенерированный `mobile/android/` — в `.gitignore` (managed prebuild, не коммитится).
 
-> ⚠ Привязка эмуляторов к `0.0.0.0` открывает их всей локальной сети — только для разработки.
+**Backend с телефона (USB):** пробросить порт, тогда `localhost:3000` в приложении бьёт в PC:
+```bash
+adb reverse tcp:3000 tcp:3000
+```
+Либо в `mobile/.env` указать LAN IP (`make ip` → `EXPO_PUBLIC_API_BASE_URL=http://<LAN_IP>:3000`), телефон и ПК в одной Wi-Fi.
+
+Требуется работающий backend: `make dev` (Mongo + Firebase Emulators + backend :3000).
+
+### Вариант B — web в браузере телефона (мгновенно, без сборки)
+
+`make dev` → открыть `http://<LAN_IP>:8081` в браузере телефона (LAN IP — `make ip`). Карта на web = плейсхолдер (`react-native-maps` — native-only, есть platform-shim `MapView.web.tsx`); загрузка фото/документов работает (FormData на web шлёт реальный Blob). Телефон и ПК в одной Wi-Fi.
+
+> Эмуляторы Firebase слушают `0.0.0.0` (`firebase.json`) — доступны в локальной сети; backend слушает все интерфейсы; CORS в dev открыт. Привязка к `0.0.0.0` — только для разработки.
 
 ---
 
