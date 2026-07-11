@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 import { auth } from '../config/firebase';
 import type { Listing, SearchListingsParams, CreateListingPayload } from '../types/listing';
 import type { CityInfo, Message } from '../types/conversation';
@@ -7,13 +6,14 @@ import type { Post, Comment, StayReviews, UserReviews } from '../types/community
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
 
 /**
- * Append a local file URI to a FormData in a platform-correct way.
+ * Append a local file URI to a FormData as a real Blob (both native and web).
  *
- * On native, RN's fetch understands the `{ uri, type, name }` shape directly.
- * On web, that shape serialises to the literal string "[object Object]" — the
- * backend then receives a text field, not a file, and multipart parsing fails
- * (e.g. "Both idDocument and selfie are required"). On web we must fetch the URI
- * into a real Blob and append that.
+ * The legacy React Native `{ uri, type, name }` object is rejected by RN 0.86's
+ * New Architecture (bridgeless) with "Unsupported FormDataPart implementation",
+ * and on web it serialises to "[object Object]" (a text field, not a file). A
+ * Blob is a supported FormData part on every platform, so we fetch the local URI
+ * into a Blob and append that. RN's fetch resolves file:// / content:// URIs to
+ * a Blob; we re-tag the content type so multipart MIME checks pass.
  */
 async function appendFile(
   formData: FormData,
@@ -22,12 +22,12 @@ async function appendFile(
   name: string,
   type = 'image/jpeg',
 ): Promise<void> {
-  if (Platform.OS === 'web') {
-    const blob = await (await fetch(uri)).blob();
-    formData.append(field, blob, name);
-  } else {
-    formData.append(field, { uri, type, name } as unknown as Blob);
+  const res = await fetch(uri);
+  let blob = await res.blob();
+  if (type && blob.type !== type) {
+    blob = new Blob([blob], { type });
   }
+  formData.append(field, blob, name);
 }
 
 async function authHeaders(): Promise<Record<string, string>> {
