@@ -85,7 +85,8 @@ export default function DocumentUploadScreen({ navigation }: Props) {
         setError(response?.error ?? 'Upload failed. Please try again.');
       }
     } catch (err) {
-      setError('Upload failed. Please check your connection and try again.');
+      const detail = err instanceof Error ? err.message : String(err);
+      setError(`Upload failed: ${detail}`);
     } finally {
       setLoading(false);
     }
