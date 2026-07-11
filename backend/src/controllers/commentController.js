@@ -2,6 +2,7 @@ const Comment = require('../models/Comment');
 const Post = require('../models/Post');
 const User = require('../models/User');
 const { sendPushNotification } = require('../services/notificationService');
+const { getSignedUrl } = require('../services/storageService');
 
 /**
  * POST /api/posts/:id/comments
@@ -79,17 +80,22 @@ async function getComments(req, res) {
       .select('authorUid text createdAt')
       .lean();
 
-    // Read-time author join so profile renames reflect on existing comments.
+    // Read-time author join (name + avatar) so profile edits reflect on comments.
     const uids = [...new Set(comments.map((c) => c.authorUid))];
     const authors = await User.find({ firebaseUid: { $in: uids } })
-      .select('firebaseUid displayName')
+      .select('firebaseUid displayName photoURL')
       .lean();
-    const nameMap = Object.fromEntries(
-      authors.map((a) => [a.firebaseUid, a.displayName || 'Member'])
-    );
+    const infoMap = {};
+    for (const a of authors) {
+      let authorPhotoUrl = null;
+      if (a.photoURL) {
+        try { authorPhotoUrl = await getSignedUrl(a.photoURL); } catch { authorPhotoUrl = null; }
+      }
+      infoMap[a.firebaseUid] = { authorName: a.displayName || 'Member', authorPhotoUrl };
+    }
     const withNames = comments.map((c) => ({
       ...c,
-      authorName: nameMap[c.authorUid] || 'Member',
+      ...(infoMap[c.authorUid] || { authorName: 'Member', authorPhotoUrl: null }),
     }));
 
     return res.json({ data: withNames });

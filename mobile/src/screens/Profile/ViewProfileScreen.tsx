@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { getUserProfile, blockUser, reportUser } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
+import { mediaUri } from '../../utils/media';
 
 // Structural props (not tied to one navigator's param list) so this screen can be
 // registered in every stack — Community, Housing, Messages, Profile — and opened
@@ -164,7 +165,7 @@ export default function ViewProfileScreen({ route, navigation }: Props) {
     <ScrollView contentContainerStyle={styles.container}>
       {/* Profile photo */}
       {profile.photoURL ? (
-        <Image source={{ uri: profile.photoURL }} style={styles.photo} />
+        <Image source={{ uri: mediaUri(profile.photoURL) }} style={styles.photo} />
       ) : (
         <View style={styles.photoPlaceholder}>
           <Text style={styles.photoPlaceholderText}>No photo</Text>

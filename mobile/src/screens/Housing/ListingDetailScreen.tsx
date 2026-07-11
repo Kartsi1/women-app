@@ -13,6 +13,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { HousingStackParamList } from '../../navigation/AppNavigator';
 import { getListingDetail } from '../../services/api';
 import type { Listing } from '../../types/listing';
+import { mediaUri } from '../../utils/media';
 import SafetyChip from '../../components/Listings/SafetyChip';
 import AddressRevealCard from '../../components/Listings/AddressRevealCard';
 
@@ -123,7 +124,7 @@ export default function ListingDetailScreen({ route, navigation }: Props) {
             {listing.photos.map((uri, index) => (
               <Image
                 key={index}
-                source={{ uri }}
+                source={{ uri: mediaUri(uri) }}
                 style={[styles.carouselPhoto, { width: SCREEN_WIDTH }]}
                 accessibilityLabel={`Listing photo ${index + 1}`}
               />

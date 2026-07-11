@@ -15,6 +15,7 @@ import { useAuthStore } from '../../store/authStore';
 import { getMyProfile, getUserReviews } from '../../services/api';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../config/firebase';
+import { mediaUri } from '../../utils/media';
 import ReviewSummaryBar from '../../components/Reviews/ReviewSummaryBar';
 import ReviewCard from '../../components/Reviews/ReviewCard';
 import type { UserReviews } from '../../types/community';
@@ -90,7 +91,7 @@ export default function ProfileScreen({ navigation }: Props) {
     <ScrollView contentContainerStyle={styles.container}>
       {/* Profile photo */}
       {profile?.photoURL ? (
-        <Image source={{ uri: profile.photoURL }} style={styles.photo} />
+        <Image source={{ uri: mediaUri(profile.photoURL) }} style={styles.photo} />
       ) : (
         <View style={styles.photoPlaceholder}>
           <Text style={styles.photoPlaceholderText}>No photo</Text>

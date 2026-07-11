@@ -15,6 +15,7 @@ import { useState } from 'react';
 import {
   View,
   Text,
+  Image,
   TextInput,
   TouchableOpacity,
   Modal,
@@ -27,6 +28,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { Comment } from '../../types/community';
 import type { CommunityStackParamList } from '../../navigation/AppNavigator';
 import { reportContent } from '../../services/api';
+import { mediaUri } from '../../utils/media';
 
 interface Props {
   comment: Comment;
@@ -77,11 +79,15 @@ export default function CommentRow({ comment }: Props) {
   return (
     <>
       <View style={styles.row}>
-        {/* Avatar — 28×28dp */}
+        {/* Avatar — 28×28dp (author photo or initial) */}
         <TouchableOpacity style={styles.avatar} onPress={openProfile}>
-          <Text style={styles.avatarText}>
-            {(comment.authorName || 'Member').charAt(0).toUpperCase()}
-          </Text>
+          {comment.authorPhotoUrl ? (
+            <Image source={{ uri: mediaUri(comment.authorPhotoUrl) }} style={styles.avatarImage} />
+          ) : (
+            <Text style={styles.avatarText}>
+              {(comment.authorName || 'Member').charAt(0).toUpperCase()}
+            </Text>
+          )}
         </TouchableOpacity>
 
         {/* Content */}
@@ -176,6 +182,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 10,
     marginTop: 2,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
   },
   avatarText: {
     fontSize: 12,

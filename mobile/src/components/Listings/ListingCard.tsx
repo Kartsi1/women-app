@@ -1,5 +1,6 @@
 import { View, Text, Image, StyleSheet } from 'react-native';
 import type { Listing } from '../../types/listing';
+import { mediaUri } from '../../utils/media';
 
 interface Props {
   listing: Listing;
@@ -40,7 +41,7 @@ export default function ListingCard({ listing }: Props) {
     <View style={styles.card}>
       {/* Photo thumbnail */}
       {photoUrl ? (
-        <Image source={{ uri: photoUrl }} style={styles.photo} accessibilityLabel="Listing photo" />
+        <Image source={{ uri: mediaUri(photoUrl) }} style={styles.photo} accessibilityLabel="Listing photo" />
       ) : (
         <View style={styles.photoPlaceholder}>
           <Text style={styles.photoPlaceholderText}>🏠</Text>

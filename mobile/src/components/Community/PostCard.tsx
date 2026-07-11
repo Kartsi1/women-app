@@ -34,6 +34,7 @@ import type { CommunityStackParamList } from '../../navigation/AppNavigator';
 import { toggleLike, reportContent } from '../../services/api';
 import { useFeedStore } from '../../store/feedStore';
 import { useAuthStore } from '../../store/authStore';
+import { mediaUri } from '../../utils/media';
 
 interface Props {
   post: Post;
@@ -149,12 +150,20 @@ export default function PostCard({ post, onPress, onCommentPress }: Props) {
             onPress={() => navigation.navigate('ViewProfile', { uid: post.authorUid })}
             accessibilityLabel={`View ${post.authorName || 'member'}'s profile`}
           >
-            {/* Avatar placeholder — 36×36dp */}
-            <View style={styles.avatar} accessibilityLabel="Author avatar">
-              <Text style={styles.avatarText}>
-                {(post.authorName || 'Member').charAt(0).toUpperCase()}
-              </Text>
-            </View>
+            {/* Avatar — author's profile photo, or initial fallback (36×36dp) */}
+            {post.authorPhotoUrl ? (
+              <Image
+                source={{ uri: mediaUri(post.authorPhotoUrl) }}
+                style={styles.avatar}
+                accessibilityLabel="Author avatar"
+              />
+            ) : (
+              <View style={styles.avatar} accessibilityLabel="Author avatar">
+                <Text style={styles.avatarText}>
+                  {(post.authorName || 'Member').charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
             <View style={styles.authorMeta}>
               <Text style={styles.authorName} numberOfLines={1}>
                 {post.authorName || 'Member'}
@@ -184,7 +193,7 @@ export default function PostCard({ post, onPress, onCommentPress }: Props) {
         {/* Optional photo — full card width, 200dp tall */}
         {post.photoUrl ? (
           <Image
-            source={{ uri: post.photoUrl }}
+            source={{ uri: mediaUri(post.photoUrl) }}
             style={styles.photo}
             resizeMode="cover"
             accessibilityLabel="Post photo"
