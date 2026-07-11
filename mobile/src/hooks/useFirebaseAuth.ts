@@ -15,7 +15,8 @@ type ProfileResponse = {
 };
 
 export function useFirebaseAuth() {
-  const { setUser, setVerified, setVerificationStatus, clear, setExpoPushToken } = useAuthStore();
+  const { setUser, setVerified, setVerificationStatus, setVerificationLoaded, clear, setExpoPushToken } =
+    useAuthStore();
 
   // Subscribe to Firebase auth state changes and sync verification status from token claims.
   // After a successful login, register for push notifications once per session.
@@ -29,6 +30,9 @@ export function useFirebaseAuth() {
         // Restore verification workflow state from the backend so a reload /
         // cold-start lands on the correct verification screen (pending vs upload)
         // instead of always resetting to DocumentUpload. Fails soft to 'none'.
+        // verificationLoaded gates the navigator so it does not mount on the
+        // default 'none' route before this resolves.
+        setVerificationLoaded(false);
         try {
           const profile = (await getMyProfile()) as ProfileResponse;
           if (profile?.data?.verificationStatus) {
@@ -36,9 +40,18 @@ export function useFirebaseAuth() {
               profile.data.verificationStatus,
               profile.data.rejectionReason ?? null,
             );
+            // If the admin approved while the cached token still says unverified,
+            // force-refresh so the new isVerified claim propagates and the
+            // RootNavigator swaps to the app without a manual refresh tap.
+            if (profile.data.verificationStatus === 'approved' && !tokenResult.claims.isVerified) {
+              const refreshed = await getIdTokenResult(user, true);
+              setVerified(!!refreshed.claims.isVerified);
+            }
           }
         } catch {
           // leave default; VerificationNavigator falls back to DocumentUpload
+        } finally {
+          setVerificationLoaded(true);
         }
 
         // Register for push notifications on login. Guard against duplicate

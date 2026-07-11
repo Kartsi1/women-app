@@ -1,9 +1,18 @@
-import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { useState } from 'react';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { signOut } from 'firebase/auth';
+import { signOut, getIdTokenResult } from 'firebase/auth';
 import { auth } from '../../config/firebase';
+import { getMyProfile } from '../../services/api';
 import { VerificationStackParamList } from '../../navigation/VerificationNavigator';
 import { useAuthStore } from '../../store/authStore';
+
+type ProfileResponse = {
+  data?: {
+    verificationStatus?: 'none' | 'pending' | 'approved' | 'rejected';
+    rejectionReason?: string | null;
+  };
+};
 
 type Props = NativeStackScreenProps<VerificationStackParamList, 'PendingVerification'>;
 
@@ -23,7 +32,30 @@ type Props = NativeStackScreenProps<VerificationStackParamList, 'PendingVerifica
  *   - Rejection reason box (displayed when status === 'rejected' — D-07)
  */
 export default function PendingVerificationScreen({ navigation, route }: Props) {
-  const { verificationStatus, rejectionReason } = useAuthStore();
+  const { verificationStatus, rejectionReason, setVerified, setVerificationStatus } = useAuthStore();
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Manually re-check the verification decision: force-refresh the Firebase token
+  // (picks up the isVerified claim if the admin approved) and re-fetch the status
+  // from the backend. On approval, RootNavigator's isVerified gate swaps to the app.
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      const current = auth.currentUser;
+      if (current) {
+        const tokenResult = await getIdTokenResult(current, true);
+        setVerified(!!tokenResult.claims.isVerified);
+      }
+      const profile = (await getMyProfile()) as ProfileResponse;
+      if (profile?.data?.verificationStatus) {
+        setVerificationStatus(profile.data.verificationStatus, profile.data.rejectionReason ?? null);
+      }
+    } catch {
+      // ignore — the user can tap again
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   // Thumbnails from the just-submitted upload (only available within the current session)
   const idDocumentUri = route.params?.idDocumentUri;
@@ -60,6 +92,20 @@ export default function PendingVerificationScreen({ navigation, route }: Props) 
 
       {/* Estimated wait time */}
       <Text style={styles.estimate}>Estimated wait: up to 24 hours</Text>
+
+      {/* Manual status re-check — approval/rejection is normally delivered via push,
+          but this lets the user pull the latest decision on demand. */}
+      <TouchableOpacity
+        style={[styles.refreshButton, refreshing && styles.refreshButtonDisabled]}
+        onPress={handleRefresh}
+        disabled={refreshing}
+      >
+        {refreshing ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.refreshButtonText}>Check status</Text>
+        )}
+      </TouchableOpacity>
 
       {/* Submitted photo thumbnails (shown when URIs were passed from DocumentUploadScreen) */}
       {(idDocumentUri || selfieUri) ? (
@@ -224,6 +270,23 @@ const styles = StyleSheet.create({
   resubmitButtonOutlineText: {
     color: '#6200ea',
     fontSize: 15,
+    fontWeight: '600',
+  },
+  refreshButton: {
+    backgroundColor: '#6200ea',
+    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    marginBottom: 24,
+    minWidth: 200,
+  },
+  refreshButtonDisabled: {
+    opacity: 0.6,
+  },
+  refreshButtonText: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '600',
   },
   signOutButton: {

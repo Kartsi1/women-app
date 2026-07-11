@@ -1,3 +1,4 @@
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import DocumentUploadScreen from '../screens/Auth/DocumentUploadScreen';
 import PendingVerificationScreen from '../screens/Auth/PendingVerificationScreen';
@@ -41,14 +42,26 @@ const Stack = createNativeStackNavigator<VerificationStackParamList>();
  * unverified. (Rule 1 deviation — routing would be broken with AuthNavigator.)
  */
 export function VerificationNavigator() {
-  const { verificationStatus } = useAuthStore();
+  const { verificationStatus, verificationLoaded } = useAuthStore();
 
-  // Derive initial route from store state. The screen-order trick in React
-  // Navigation means the first <Stack.Screen> rendered becomes the initial route.
+  // Wait for the first backend status fetch before mounting the stack. React
+  // Navigation reads initialRouteName only once at mount, so mounting before the
+  // real status is known would strand a pending user on DocumentUpload after a
+  // reload (the async status update can't re-navigate an already-mounted stack).
+  if (!verificationLoaded) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#6200ea" />
+      </View>
+    );
+  }
+
+  // Only a brand-new user with no submission (status 'none') should land on the
+  // upload screen. pending / rejected / approved all belong on PendingVerification
+  // (approved is transient — the refresh there force-refreshes the token and the
+  // RootNavigator isVerified gate then swaps to the app).
   const initialRoute =
-    verificationStatus === 'pending' || verificationStatus === 'rejected'
-      ? 'PendingVerification'
-      : 'DocumentUpload';
+    verificationStatus === 'none' ? 'DocumentUpload' : 'PendingVerification';
 
   return (
     <Stack.Navigator
@@ -60,3 +73,12 @@ export function VerificationNavigator() {
     </Stack.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
