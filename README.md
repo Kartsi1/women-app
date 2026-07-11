@@ -205,13 +205,25 @@ Mobile подключается к эмуляторам автоматическ
 ```bash
 npx expo run:android
 ```
-Первый раз долго (Gradle тянет зависимости + компилит натив). Дальше — `npx expo start --dev-client`. Пакет приложения: `com.kartsi.mobile`. Сгенерированный `mobile/android/` — в `.gitignore` (managed prebuild, не коммитится).
+Первый раз долго (~5 мин: Gradle тянет зависимости + компилит натив). APK ставится на устройство, dev client открывается сам. Пакет приложения: `com.kartsi.mobile`. Сгенерированный `mobile/android/` — в `.gitignore` (managed prebuild, не коммитится).
 
-**Backend с телефона (USB):** пробросить порт, тогда `localhost:3000` в приложении бьёт в PC:
+**Повторные запуски** (нативный код не менялся) — пересборка НЕ нужна:
 ```bash
-adb reverse tcp:3000 tcp:3000
+npx expo start --dev-client   # открыть на телефоне из установленного dev client
 ```
-Либо в `mobile/.env` указать LAN IP (`make ip` → `EXPO_PUBLIC_API_BASE_URL=http://<LAN_IP>:3000`), телефон и ПК в одной Wi-Fi.
+Пересобирать (`expo run:android`) нужно только при смене нативного кода / плагинов / нативных зависимостей. JS-правки подхватываются live через Metro.
+
+**Backend/эмуляторы с телефона по USB** — проброс портов (телефонный `localhost` → ПК):
+```bash
+adb reverse tcp:3000 tcp:3000   # backend
+adb reverse tcp:9099 tcp:9099   # Firebase Auth emulator
+adb reverse tcp:9199 tcp:9199   # Firebase Storage emulator
+adb reverse tcp:4000 tcp:4000   # Emulator UI
+adb reverse tcp:8081 tcp:8081   # Metro
+```
+> ⚠ `adb reverse` сбрасывается при отключении/переподключении USB — повторить после reconnect.
+
+Альтернатива проброса — LAN: в `mobile/.env` указать `EXPO_PUBLIC_API_BASE_URL=http://<LAN_IP>:3000` (`make ip`), телефон и ПК в одной Wi-Fi. Из этого URL mobile выводит и адреса эмуляторов Firebase.
 
 Требуется работающий backend: `make dev` (Mongo + Firebase Emulators + backend :3000).
 
