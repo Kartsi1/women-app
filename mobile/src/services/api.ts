@@ -20,13 +20,13 @@ async function appendFile(
   field: string,
   uri: string,
   name: string,
-  type = 'image/jpeg',
 ): Promise<void> {
   const res = await fetch(uri);
-  let blob = await res.blob();
-  if (type && blob.type !== type) {
-    blob = new Blob([blob], { type });
-  }
+  const blob = await res.blob();
+  // Do NOT re-wrap in `new Blob([blob], { type })` — RN's Blob cannot be built
+  // from an ArrayBuffer/Blob part ("Creating blobs from 'ArrayBuffer' ... not
+  // supported"). Append the fetched Blob directly; its type + the filename carry
+  // the multipart content type.
   formData.append(field, blob, name);
 }
 
