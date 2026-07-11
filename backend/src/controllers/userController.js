@@ -189,6 +189,42 @@ async function getProfile(req, res) {
 }
 
 /**
+ * GET /api/users/me
+ *
+ * Return the authenticated caller's OWN profile — gated by verifyFirebaseToken
+ * ONLY (no requireVerified). This is the endpoint an unverified/pending user must
+ * use to learn their own verificationStatus + rejectionReason; the public
+ * GET /:uid requires verification and would 403 a pending user, trapping them on
+ * the upload screen.
+ */
+async function getOwnProfile(req, res) {
+  try {
+    const target = await User.findOne({ firebaseUid: req.user.uid });
+    if (!target) return res.status(404).json({ error: 'User not found' });
+
+    const photoURL = target.photoURL ? await getSignedUrl(target.photoURL) : null;
+
+    const data = {
+      uid: target.firebaseUid,
+      displayName: target.displayName,
+      bio: target.bio,
+      homeCity: target.homeCity,
+      photoURL,
+      isVerified: target.verificationStatus === 'approved',
+      hostsCount: target.hostsCount,
+      tripsCount: target.tripsCount,
+      verificationStatus: target.verificationStatus,
+      rejectionReason: target.rejectionReason ?? null,
+    };
+
+    res.json({ data });
+  } catch (err) {
+    console.error('[getOwnProfile]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
  * POST /api/users/profile-photo
  *
  * Upload or replace the authenticated user's profile photo.
@@ -316,6 +352,7 @@ module.exports = {
   savePushToken,
   updateProfile,
   getProfile,
+  getOwnProfile,
   uploadProfilePhoto,
   blockUser,
   reportUser,

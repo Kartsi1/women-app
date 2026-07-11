@@ -110,6 +110,17 @@ router.post('/report', verifyFirebaseToken, requireVerified, userController.repo
  * (/profile, /profile-photo, /verification-docs, /push-token, /block/:uid, /report)
  * are matched first.
  */
+/**
+ * GET /api/users/me
+ *
+ * Return the authenticated caller's OWN profile — verifyFirebaseToken only, NO
+ * requireVerified, so a pending/rejected user can read their own verificationStatus
+ * (the public /:uid route below requires verification and would 403 them).
+ *
+ * NOTE: declared BEFORE GET /:uid so "me" is not captured as a uid.
+ */
+router.get('/me', verifyFirebaseToken, userController.getOwnProfile);
+
 router.get('/:uid', verifyFirebaseToken, requireVerified, userController.getProfile);
 
 module.exports = router;

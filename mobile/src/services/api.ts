@@ -85,10 +85,11 @@ export async function savePushToken(token: string): Promise<unknown> {
  * The backend returns the explicit public projection (no email or verification docs).
  */
 export async function getMyProfile(): Promise<unknown> {
-  const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error('Not authenticated');
+  if (!auth.currentUser) throw new Error('Not authenticated');
   const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/users/${uid}`, { headers });
+  // /me is verifyFirebaseToken-only (no requireVerified) so a pending/rejected
+  // user can read their own verificationStatus — the public /:uid route 403s them.
+  const res = await fetch(`${API_BASE_URL}/api/users/me`, { headers });
   return res.json();
 }
 
