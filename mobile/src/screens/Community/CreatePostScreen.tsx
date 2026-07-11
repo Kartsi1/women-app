@@ -53,9 +53,8 @@ export default function CreatePostScreen({ navigation }: Props) {
       } else {
         Alert.alert('Error', result.error ?? 'Post not published. Please try again.');
       }
-    } catch (err) {
-      const detail = err instanceof Error ? err.message : String(err);
-      Alert.alert('Error', `Post not published: ${detail}`);
+    } catch {
+      Alert.alert('Error', 'Post not published. Please try again.');
     } finally {
       setSubmitting(false);
     }

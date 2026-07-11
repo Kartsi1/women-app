@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+import { File } from 'expo-file-system';
 import { auth } from '../config/firebase';
 import type { Listing, SearchListingsParams, CreateListingPayload } from '../types/listing';
 import type { CityInfo, Message } from '../types/conversation';
@@ -21,13 +23,19 @@ async function appendFile(
   uri: string,
   name: string,
 ): Promise<void> {
-  const res = await fetch(uri);
-  const blob = await res.blob();
-  // Do NOT re-wrap in `new Blob([blob], { type })` — RN's Blob cannot be built
-  // from an ArrayBuffer/Blob part ("Creating blobs from 'ArrayBuffer' ... not
-  // supported"). Append the fetched Blob directly; its type + the filename carry
-  // the multipart content type.
-  formData.append(field, blob, name);
+  if (Platform.OS === 'web') {
+    // Web: the RN `{ uri, type, name }` object serialises to "[object Object]".
+    // Fetch the URI into a real Blob and append that.
+    const blob = await (await fetch(uri)).blob();
+    formData.append(field, blob, name);
+  } else {
+    // Native: use expo-file-system's `File` — it `implements Blob` and is backed by
+    // the native file (not an ArrayBuffer), so RN 0.86's New Architecture FormData
+    // accepts it as a valid part. The legacy `{ uri, type, name }` object throws
+    // "Unsupported FormDataPart implementation" and `fetch(uri).blob()` throws
+    // "Creating blobs from ArrayBuffer ... not supported" under bridgeless mode.
+    formData.append(field, new File(uri) as unknown as Blob, name);
+  }
 }
 
 async function authHeaders(): Promise<Record<string, string>> {
