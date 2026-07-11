@@ -1,5 +1,6 @@
 const Post = require('../models/Post');
 const Comment = require('../models/Comment');
+const User = require('../models/User');
 const { uploadFile, getSignedUrl } = require('../services/storageService');
 
 const PAGE_SIZE = 20;
@@ -89,20 +90,35 @@ async function getFeed(req, res) {
     const hasMore = posts.length > PAGE_SIZE;
     const page = hasMore ? posts.slice(0, PAGE_SIZE) : posts;
 
-    // Resolve storage paths to short-lived signed URLs (T-03-01-03)
-    // Matches the listing photo discipline: never emit a raw public bucket URL
+    // Read-time author join: resolve each post's author displayName + avatar from
+    // the User collection so profile renames reflect on every post (posts store
+    // only authorUid, never a name snapshot).
+    const authorUids = [...new Set(page.map((p) => p.authorUid))];
+    const authors = await User.find({ firebaseUid: { $in: authorUids } })
+      .select('firebaseUid displayName photoURL')
+      .lean();
+    const authorMap = {};
+    for (const a of authors) {
+      let authorPhotoUrl = null;
+      if (a.photoURL) {
+        try { authorPhotoUrl = await getSignedUrl(a.photoURL); } catch { authorPhotoUrl = null; }
+      }
+      authorMap[a.firebaseUid] = { authorName: a.displayName || 'Member', authorPhotoUrl };
+    }
+
+    // Resolve post photo storage paths to signed URLs (T-03-01-03) + attach author.
     const enriched = await Promise.all(
       page.map(async (post) => {
+        const author = authorMap[post.authorUid] || { authorName: 'Member', authorPhotoUrl: null };
+        let photoUrl = post.photoUrl;
         if (post.photoUrl) {
           try {
-            const signedUrl = await getSignedUrl(post.photoUrl);
-            return { ...post, photoUrl: signedUrl };
+            photoUrl = await getSignedUrl(post.photoUrl);
           } catch {
-            // Non-fatal — signed URL generation may fail if Firebase not configured
-            return { ...post, photoUrl: null };
+            photoUrl = null;
           }
         }
-        return post;
+        return { ...post, photoUrl, ...author };
       })
     );
 

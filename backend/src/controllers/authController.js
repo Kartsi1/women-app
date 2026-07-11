@@ -3,6 +3,10 @@ const User = require('../models/User');
 async function register(req, res) {
   try {
     const { uid, email } = req.user;
+    // Optional display name captured at sign-up. Set only when provided so a
+    // re-register never blanks an existing name.
+    const displayName =
+      typeof req.body?.displayName === 'string' ? req.body.displayName.trim() : '';
     let user = await User.findOne({ firebaseUid: uid });
 
     // Reconcile a pre-existing mirror keyed on the same (Firebase-verified) email whose
@@ -13,12 +17,20 @@ async function register(req, res) {
       const byEmail = await User.findOne({ email });
       if (byEmail) {
         byEmail.firebaseUid = uid;
+        if (displayName) byEmail.displayName = displayName;
         user = await byEmail.save();
       }
     }
 
     if (!user) {
-      user = await User.create({ firebaseUid: uid, email });
+      user = await User.create({
+        firebaseUid: uid,
+        email,
+        ...(displayName ? { displayName } : {}),
+      });
+    } else if (displayName && !user.displayName) {
+      user.displayName = displayName;
+      await user.save();
     }
     return res.status(201).json({ data: user });
   } catch (err) {

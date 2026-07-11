@@ -79,7 +79,20 @@ async function getComments(req, res) {
       .select('authorUid text createdAt')
       .lean();
 
-    return res.json({ data: comments });
+    // Read-time author join so profile renames reflect on existing comments.
+    const uids = [...new Set(comments.map((c) => c.authorUid))];
+    const authors = await User.find({ firebaseUid: { $in: uids } })
+      .select('firebaseUid displayName')
+      .lean();
+    const nameMap = Object.fromEntries(
+      authors.map((a) => [a.firebaseUid, a.displayName || 'Member'])
+    );
+    const withNames = comments.map((c) => ({
+      ...c,
+      authorName: nameMap[c.authorUid] || 'Member',
+    }));
+
+    return res.json({ data: withNames });
   } catch (err) {
     console.error('[getComments]', err);
     return res.status(500).json({ error: 'Internal server error' });

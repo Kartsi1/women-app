@@ -74,14 +74,14 @@ export default function CommentRow({ comment }: Props) {
         {/* Avatar — 28×28dp */}
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
-            {comment.authorUid.charAt(0).toUpperCase()}
+            {(comment.authorName || 'Member').charAt(0).toUpperCase()}
           </Text>
         </View>
 
         {/* Content */}
         <View style={styles.content}>
           <Text style={styles.authorName} numberOfLines={1}>
-            {comment.authorUid}
+            {comment.authorName || 'Member'}
           </Text>
           <Text style={styles.commentText}>{comment.text}</Text>
           <Text style={styles.timestamp}>{formatTimestamp(comment.createdAt)}</Text>

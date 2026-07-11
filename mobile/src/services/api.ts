@@ -50,9 +50,13 @@ async function authHeaders(): Promise<Record<string, string>> {
  * Mirror the currently signed-in Firebase user into MongoDB.
  * Called once immediately after createUserWithEmailAndPassword succeeds.
  */
-export async function registerUser(): Promise<unknown> {
+export async function registerUser(displayName?: string): Promise<unknown> {
   const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/auth/register`, { method: 'POST', headers });
+  const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ displayName: displayName ?? '' }),
+  });
   return res.json();
 }
 

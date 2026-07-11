@@ -15,6 +15,7 @@ export interface Comment {
   _id: string;
   postId: string;
   authorUid: string;
+  authorName?: string; // resolved from the author's profile at read time
   text: string;
   createdAt: string; // ISO 8601 date string
 }
@@ -22,6 +23,8 @@ export interface Comment {
 export interface Post {
   _id: string;
   authorUid: string;
+  authorName?: string; // resolved from the author's profile at read time (reflects renames)
+  authorPhotoUrl?: string | null; // signed avatar URL, or null
   text: string;
   /**
    * Signed URL string when a photo was attached, or null if no photo.

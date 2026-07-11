@@ -144,12 +144,12 @@ export default function PostCard({ post, onPress, onCommentPress }: Props) {
             {/* Avatar placeholder — 36×36dp */}
             <View style={styles.avatar} accessibilityLabel="Author avatar">
               <Text style={styles.avatarText}>
-                {post.authorUid.charAt(0).toUpperCase()}
+                {(post.authorName || 'Member').charAt(0).toUpperCase()}
               </Text>
             </View>
             <View style={styles.authorMeta}>
               <Text style={styles.authorName} numberOfLines={1}>
-                {post.authorUid}
+                {post.authorName || 'Member'}
               </Text>
               <Text style={styles.timestamp}>
                 {formatTimestamp(post.createdAt)}

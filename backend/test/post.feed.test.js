@@ -120,6 +120,25 @@ require.cache[require.resolve(storageServicePath)] = {
 };
 
 // ---------------------------------------------------------------------------
+// Stub User model — getFeed resolves author display names via User.find(...)
+// ---------------------------------------------------------------------------
+
+const userModelPath = path.resolve(__dirname, '../src/models/User');
+require.cache[require.resolve(userModelPath)] = {
+  id: require.resolve(userModelPath),
+  filename: require.resolve(userModelPath),
+  loaded: true,
+  exports: {
+    find() {
+      return {
+        select() { return this; },
+        lean() { return Promise.resolve([]); },
+      };
+    },
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Load the controller under test (picks up stubs from cache)
 // ---------------------------------------------------------------------------
 

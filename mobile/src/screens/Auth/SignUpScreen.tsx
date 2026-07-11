@@ -17,12 +17,17 @@ import { AuthStackParamList } from '../../navigation/AuthNavigator';
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignUp'>;
 
 export default function SignUpScreen({ navigation }: Props) {
+  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSignUp() {
+    if (!displayName.trim()) {
+      setError('Display name is required.');
+      return;
+    }
     if (!email.trim() || !password.trim()) {
       setError('Email and password are required.');
       return;
@@ -31,8 +36,8 @@ export default function SignUpScreen({ navigation }: Props) {
     setLoading(true);
     try {
       await createUserWithEmailAndPassword(auth, email.trim(), password);
-      // Mirror the new Firebase user into MongoDB (VERI-01)
-      await registerUser();
+      // Mirror the new Firebase user into MongoDB with the chosen display name (VERI-01)
+      await registerUser(displayName.trim());
       // RootNavigator will automatically switch to PendingVerificationScreen
       // once onAuthStateChanged fires and populates the auth store.
     } catch (err: unknown) {
@@ -50,6 +55,16 @@ export default function SignUpScreen({ navigation }: Props) {
     >
       <View style={styles.container}>
         <Text style={styles.title}>Create account</Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder="Display name"
+          placeholderTextColor="#999"
+          autoCapitalize="words"
+          value={displayName}
+          onChangeText={setDisplayName}
+          editable={!loading}
+        />
 
         <TextInput
           style={styles.input}
