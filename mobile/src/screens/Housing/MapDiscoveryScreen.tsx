@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Region } from '../../components/Map/MapView';
 import * as Location from 'expo-location';
 import { useFocusEffect } from '@react-navigation/native';
@@ -41,6 +42,7 @@ const DEFAULT_RADIUS_M = 10000;
  * Replaces HousingPlaceholderScreen from plan 02-01.
  */
 export default function MapDiscoveryScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
   const { listings, setListings, selectedListing, setSelectedListing } = useListingStore();
 
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -207,7 +209,7 @@ export default function MapDiscoveryScreen({ navigation }: Props) {
       </MapView>
 
       {/* Floating top bar: search label + filter button */}
-      <View style={styles.topBar} pointerEvents="box-none">
+      <View style={[styles.topBar, { top: insets.top }]} pointerEvents="box-none">
         <View style={styles.searchBar}>
           <Text style={styles.searchLabel}>Find housing</Text>
           <TouchableOpacity
@@ -225,7 +227,7 @@ export default function MapDiscoveryScreen({ navigation }: Props) {
 
       {/* Loading indicator */}
       {loading && (
-        <View style={styles.loadingOverlay} pointerEvents="none">
+        <View style={[styles.loadingOverlay, { top: insets.top + 72 }]} pointerEvents="none">
           <ActivityIndicator size="small" color="#6200ea" />
         </View>
       )}

@@ -116,7 +116,13 @@ function HousingStackNavigator() {
   const screenOptions = useSafeStackScreenOptions();
   return (
     <HousingStack.Navigator screenOptions={screenOptions}>
-      <HousingStack.Screen name="MapDiscovery" component={MapDiscoveryScreen} />
+      <HousingStack.Screen
+        name="MapDiscovery"
+        component={MapDiscoveryScreen}
+        // Replaces the stack contentStyle (drops paddingTop) so the map is full-bleed
+        // and MapDiscoveryScreen applies the status-bar inset to its own floating bar.
+        options={{ contentStyle: { backgroundColor: '#fff' } }}
+      />
       <HousingStack.Screen name="CreateListing" component={CreateListingScreen} />
       <HousingStack.Screen name="ListingDetail" component={ListingDetailScreen} />
       <HousingStack.Screen name="StayRequestCompose" component={StayRequestComposeScreen} />

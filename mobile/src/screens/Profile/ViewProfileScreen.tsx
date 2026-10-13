@@ -66,6 +66,9 @@ export default function ViewProfileScreen({ route, navigation }: Props) {
   // Block state
   const [blocking, setBlocking] = useState(false);
 
+  // Photo URI that failed to load (tracked per-URI so a new signed URL retries)
+  const [failedPhotoUri, setFailedPhotoUri] = useState<string | null>(null);
+
   // Report modal state
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [reportReason, setReportReason] = useState('');
@@ -161,14 +164,25 @@ export default function ViewProfileScreen({ route, navigation }: Props) {
     );
   }
 
+  const photoUri = mediaUri(profile.photoURL);
+  const initial = (profile.displayName ?? '').trim().charAt(0).toUpperCase() || '?';
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       {/* Profile photo */}
-      {profile.photoURL ? (
-        <Image source={{ uri: mediaUri(profile.photoURL) }} style={styles.photo} />
+      {photoUri && photoUri !== failedPhotoUri ? (
+        <Image
+          key={photoUri}
+          source={{ uri: photoUri }}
+          style={styles.photo}
+          onError={(e) => {
+            console.warn('[ViewProfileScreen] photo failed', photoUri, e.nativeEvent.error);
+            setFailedPhotoUri(photoUri);
+          }}
+        />
       ) : (
         <View style={styles.photoPlaceholder}>
-          <Text style={styles.photoPlaceholderText}>No photo</Text>
+          <Text style={styles.photoPlaceholderText}>{initial}</Text>
         </View>
       )}
 
@@ -340,8 +354,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   photoPlaceholderText: {
-    color: '#999',
-    fontSize: 12,
+    color: '#6200ea',
+    fontSize: 36,
+    fontWeight: '700',
   },
   displayName: {
     fontSize: 22,
