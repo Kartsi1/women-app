@@ -51,7 +51,8 @@ function registerSocketHandlers(io) {
       }
       socket.data.uid = decoded.uid;
       next();
-    } catch {
+    } catch (err) {
+      console.warn('[socket auth] verifyIdToken failed:', err.code || err.message);
       next(new Error('Invalid token'));
     }
   });

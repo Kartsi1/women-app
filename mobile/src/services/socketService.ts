@@ -7,6 +7,8 @@ import { presentLocalNotification } from './push';
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
 
 let socket: Socket | null = null;
+let forceRefreshNext = false;
+let authRetryUsed = false;
 
 /**
  * Connect to the backend Socket.io server using the Firebase ID token.
@@ -20,10 +22,22 @@ let socket: Socket | null = null;
 export async function connectSocket(): Promise<Socket> {
   if (socket?.connected) return socket;
 
-  const token = await auth.currentUser?.getIdToken();
-
   socket = io(API_BASE_URL, {
-    auth: { token },           // verified by io.use() middleware on server
+    // Callback form: a current token is fetched on every (re)connection attempt.
+    // Verified by the io.use() middleware on the server. Never log the token.
+    auth: (cb) => {
+      const user = auth.currentUser;
+      if (!user) {
+        cb({});
+        return;
+      }
+      const force = forceRefreshNext;
+      forceRefreshNext = false;
+      user
+        .getIdToken(force)
+        .then((token) => cb({ token }))
+        .catch(() => cb({}));
+    },
     transports: ['websocket'], // skip polling for mobile performance
     reconnection: true,
     reconnectionDelay: 1000,
@@ -33,7 +47,23 @@ export async function connectSocket(): Promise<Socket> {
   setSocket(socket);
 
   socket.on('connect', () => {
+    authRetryUsed = false;
     setConnected(true);
+  });
+
+  // socket.io-client does not auto-reconnect after a middleware rejection.
+  // On an auth rejection refresh the token once and reconnect; otherwise give
+  // up (REST authFetch owns sign-out — the socket never signs out).
+  socket.on('connect_error', (err: Error) => {
+    const authRejected = err.message === 'Invalid token' || err.message === 'Missing auth token';
+    if (authRejected && !authRetryUsed && auth.currentUser) {
+      authRetryUsed = true;
+      forceRefreshNext = true;
+      console.warn('[Socket] auth rejected — refreshing token and retrying once');
+      socket?.connect();
+      return;
+    }
+    console.warn('[Socket] connect_error:', err.message);
   });
 
   socket.on('disconnect', () => {
@@ -83,6 +113,8 @@ export function getSocket(): Socket | null {
 export function disconnectSocket(): void {
   socket?.disconnect();
   socket = null;
+  forceRefreshNext = false;
+  authRetryUsed = false;
   const { clear } = useSocketStore.getState();
   clear();
 }

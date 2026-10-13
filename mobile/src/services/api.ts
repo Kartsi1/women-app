@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { File } from 'expo-file-system';
+import { signOut } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import type { Listing, SearchListingsParams, CreateListingPayload } from '../types/listing';
 import type { CityInfo, Message } from '../types/conversation';
@@ -38,12 +39,73 @@ async function appendFile(
   }
 }
 
-async function authHeaders(): Promise<Record<string, string>> {
+let refreshInFlight: Promise<string> | null = null;
+let signOutInFlight: Promise<void> | null = null;
+
+/**
+ * Sign the user out after an unrecoverable 401. Only signOut(auth) is needed:
+ * useFirebaseAuth's onAuthStateChanged clears the stores and RootNavigator
+ * disconnects the socket. Deduped so concurrent 401s trigger a single sign-out.
+ */
+function handleSessionExpired(): Promise<void> {
+  if (!signOutInFlight) {
+    console.warn('[api] session expired — signing out');
+    signOutInFlight = signOut(auth)
+      .catch(() => undefined)
+      .finally(() => {
+        signOutInFlight = null;
+      });
+  }
+  return signOutInFlight;
+}
+
+/** Force-refresh the Firebase ID token; concurrent callers share one request. */
+function forceRefreshToken(): Promise<string> {
+  if (!refreshInFlight) {
+    const user = auth.currentUser;
+    if (!user) return Promise.reject(new Error('Not authenticated'));
+    refreshInFlight = user.getIdToken(true).finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
+}
+
+function buildHeaders(token: string | undefined, init: RequestInit): Record<string, string> {
+  const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+  // Multipart bodies must NOT carry a manual Content-Type — FormData sets the boundary.
+  if (!(init.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+  return { ...headers, ...(init.headers as Record<string, string> | undefined) };
+}
+
+/**
+ * Authenticated fetch. Attaches the Firebase ID token; on a 401 force-refreshes
+ * the token and retries exactly once. A persistent 401 (or a non-network refresh
+ * failure) signs the user out so they land on the login screen.
+ */
+async function authFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const token = await auth.currentUser?.getIdToken();
-  return {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-  };
+  const res = await fetch(url, { ...init, headers: buildHeaders(token, init) });
+  if (res.status !== 401 || !auth.currentUser) return res;
+
+  let fresh: string;
+  try {
+    fresh = await forceRefreshToken();
+  } catch (err) {
+    const code = (err as { code?: string } | null)?.code;
+    if (code !== 'auth/network-request-failed') {
+      await handleSessionExpired();
+    }
+    return res;
+  }
+
+  const retry = await fetch(url, { ...init, headers: buildHeaders(fresh, init) });
+  if (retry.status === 401) {
+    await handleSessionExpired();
+  }
+  return retry;
 }
 
 /**
@@ -51,10 +113,8 @@ async function authHeaders(): Promise<Record<string, string>> {
  * Called once immediately after createUserWithEmailAndPassword succeeds.
  */
 export async function registerUser(displayName?: string): Promise<unknown> {
-  const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+  const res = await authFetch(`${API_BASE_URL}/api/auth/register`, {
     method: 'POST',
-    headers,
     body: JSON.stringify({ displayName: displayName ?? '' }),
   });
   return res.json();
@@ -65,13 +125,11 @@ export async function registerUser(displayName?: string): Promise<unknown> {
  * Do NOT set Content-Type manually — let FormData set the boundary (RESEARCH Pitfall 5).
  */
 export async function uploadVerificationDocs(idUri: string, selfieUri: string): Promise<unknown> {
-  const token = await auth.currentUser?.getIdToken();
   const formData = new FormData();
   await appendFile(formData, 'idDocument', idUri, 'id.jpg');
   await appendFile(formData, 'selfie', selfieUri, 'selfie.jpg');
-  const res = await fetch(`${API_BASE_URL}/api/users/verification-docs`, {
+  const res = await authFetch(`${API_BASE_URL}/api/users/verification-docs`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
     body: formData,
   });
   return res.json();
@@ -83,10 +141,8 @@ export async function uploadVerificationDocs(idUri: string, selfieUri: string): 
  * approval/rejection notifications to this token).
  */
 export async function savePushToken(token: string): Promise<unknown> {
-  const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/users/push-token`, {
+  const res = await authFetch(`${API_BASE_URL}/api/users/push-token`, {
     method: 'POST',
-    headers,
     body: JSON.stringify({ expoPushToken: token }),
   });
   return res.json();
@@ -98,10 +154,9 @@ export async function savePushToken(token: string): Promise<unknown> {
  */
 export async function getMyProfile(): Promise<unknown> {
   if (!auth.currentUser) throw new Error('Not authenticated');
-  const headers = await authHeaders();
   // /me is verifyFirebaseToken-only (no requireVerified) so a pending/rejected
   // user can read their own verificationStatus — the public /:uid route 403s them.
-  const res = await fetch(`${API_BASE_URL}/api/users/me`, { headers });
+  const res = await authFetch(`${API_BASE_URL}/api/users/me`);
   return res.json();
 }
 
@@ -114,10 +169,8 @@ export async function updateProfile(fields: {
   bio?: string;
   homeCity?: string;
 }): Promise<unknown> {
-  const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/users/profile`, {
+  const res = await authFetch(`${API_BASE_URL}/api/users/profile`, {
     method: 'PUT',
-    headers,
     body: JSON.stringify(fields),
   });
   return res.json();
@@ -127,8 +180,7 @@ export async function updateProfile(fields: {
  * Fetch another verified user's public profile from GET /api/users/:uid.
  */
 export async function getUserProfile(uid: string): Promise<unknown> {
-  const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/users/${uid}`, { headers });
+  const res = await authFetch(`${API_BASE_URL}/api/users/${uid}`);
   return res.json();
 }
 
@@ -139,13 +191,10 @@ export async function getUserProfile(uid: string): Promise<unknown> {
  * @param uri - local file URI from expo-image-picker (e.g. file:///...)
  */
 export async function uploadProfilePhoto(uri: string): Promise<unknown> {
-  const token = await auth.currentUser?.getIdToken();
   const formData = new FormData();
   await appendFile(formData, 'photo', uri, 'photo.jpg');
-  const res = await fetch(`${API_BASE_URL}/api/users/profile-photo`, {
+  const res = await authFetch(`${API_BASE_URL}/api/users/profile-photo`, {
     method: 'POST',
-    // Authorization only — no Content-Type; let FormData set the boundary (Pitfall 5)
-    headers: { Authorization: `Bearer ${token}` },
     body: formData,
   });
   return res.json();
@@ -158,10 +207,8 @@ export async function uploadProfilePhoto(uri: string): Promise<unknown> {
  * POST /api/users/block/:uid
  */
 export async function blockUser(uid: string): Promise<unknown> {
-  const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/users/block/${uid}`, {
+  const res = await authFetch(`${API_BASE_URL}/api/users/block/${uid}`, {
     method: 'POST',
-    headers,
   });
   return res.json();
 }
@@ -183,10 +230,8 @@ export interface ReportPayload {
  * POST /api/users/report
  */
 export async function reportUser(payload: ReportPayload): Promise<unknown> {
-  const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/users/report`, {
+  const res = await authFetch(`${API_BASE_URL}/api/users/report`, {
     method: 'POST',
-    headers,
     body: JSON.stringify(payload),
   });
   return res.json();
@@ -206,7 +251,6 @@ export async function reportUser(payload: ReportPayload): Promise<unknown> {
 export async function searchListings(
   params: SearchListingsParams
 ): Promise<{ data: Listing[] }> {
-  const headers = await authHeaders();
   const query = new URLSearchParams({
     lat: String(params.lat),
     lng: String(params.lng),
@@ -214,8 +258,17 @@ export async function searchListings(
     ...(params.fromDate && { fromDate: params.fromDate }),
     ...(params.toDate && { toDate: params.toDate }),
   });
-  const res = await fetch(`${API_BASE_URL}/api/listings/search?${query}`, { headers });
-  return res.json();
+  const res = await authFetch(`${API_BASE_URL}/api/listings/search?${query}`);
+  const json = await res.json();
+  // Search rows come straight from Mongo with `_id` only — normalize to `id`
+  // so the map (markers, selection, "View" button) can address listings.
+  if (json && Array.isArray(json.data)) {
+    json.data = (json.data as Array<Listing & { _id?: string }>).map((row) => ({
+      ...row,
+      id: String(row.id ?? row._id ?? ''),
+    }));
+  }
+  return json;
 }
 
 /**
@@ -228,8 +281,6 @@ export async function searchListings(
 export async function createListing(
   payload: CreateListingPayload
 ): Promise<{ data?: { id: string }; error?: string }> {
-  const token = await auth.currentUser?.getIdToken();
-
   const formData = new FormData();
   formData.append('title', payload.title);
   if (payload.description) formData.append('description', payload.description);
@@ -249,10 +300,8 @@ export async function createListing(
     }
   }
 
-  const res = await fetch(`${API_BASE_URL}/api/listings`, {
+  const res = await authFetch(`${API_BASE_URL}/api/listings`, {
     method: 'POST',
-    // Authorization only — no Content-Type; let FormData set the boundary (Pitfall 5)
-    headers: { Authorization: `Bearer ${token}` },
     body: formData,
   });
   return res.json();
@@ -268,8 +317,7 @@ export async function createListing(
 export async function getListingDetail(
   id: string
 ): Promise<{ data?: Listing; error?: string }> {
-  const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/listings/${id}`, { headers });
+  const res = await authFetch(`${API_BASE_URL}/api/listings/${id}`);
   return res.json();
 }
 
@@ -305,10 +353,8 @@ export interface StayRequestData {
 export async function createStayRequest(
   payload: CreateStayRequestPayload
 ): Promise<{ data?: { id: string }; error?: string }> {
-  const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/requests`, {
+  const res = await authFetch(`${API_BASE_URL}/api/requests`, {
     method: 'POST',
-    headers,
     body: JSON.stringify(payload),
   });
   return res.json();
@@ -322,8 +368,7 @@ export async function createStayRequest(
  * Projected to safe fields only.
  */
 export async function getHostInbox(): Promise<{ data?: StayRequestData[]; error?: string }> {
-  const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/requests/inbox`, { headers });
+  const res = await authFetch(`${API_BASE_URL}/api/requests/inbox`);
   return res.json();
 }
 
@@ -339,10 +384,8 @@ export async function updateStayRequestStatus(
   id: string,
   status: 'accepted' | 'declined'
 ): Promise<{ data?: StayRequestData; error?: string }> {
-  const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/requests/${id}`, {
+  const res = await authFetch(`${API_BASE_URL}/api/requests/${id}`, {
     method: 'PATCH',
-    headers,
     body: JSON.stringify({ status }),
   });
   return res.json();
@@ -366,10 +409,8 @@ export async function sendMessageRequest(
   recipientUid: string,
   intro: string
 ): Promise<{ data?: unknown; error?: string }> {
-  const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/message-requests`, {
+  const res = await authFetch(`${API_BASE_URL}/api/message-requests`, {
     method: 'POST',
-    headers,
     body: JSON.stringify({ recipientUid, intro }),
   });
   return res.json();
@@ -382,8 +423,7 @@ export async function sendMessageRequest(
  * Returns only pending requests; accepted/declined are filtered server-side.
  */
 export async function getMessageRequestInbox(): Promise<{ data?: unknown[]; error?: string }> {
-  const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/message-requests/inbox`, { headers });
+  const res = await authFetch(`${API_BASE_URL}/api/message-requests/inbox`);
   return res.json();
 }
 
@@ -399,10 +439,8 @@ export async function updateMessageRequestStatus(
   id: string,
   status: 'accepted' | 'declined'
 ): Promise<{ data?: unknown; conversationId?: string; error?: string }> {
-  const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/message-requests/${id}`, {
+  const res = await authFetch(`${API_BASE_URL}/api/message-requests/${id}`, {
     method: 'PATCH',
-    headers,
     body: JSON.stringify({ status }),
   });
   return res.json();
@@ -415,8 +453,7 @@ export async function updateMessageRequestStatus(
  * Sorted by lastMessageAt descending.
  */
 export async function listConversations(): Promise<{ data?: unknown[]; error?: string }> {
-  const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/conversations`, { headers });
+  const res = await authFetch(`${API_BASE_URL}/api/conversations`);
   return res.json();
 }
 
@@ -433,13 +470,11 @@ export async function getConversationMessages(
   conversationId: string,
   before?: string
 ): Promise<{ data?: unknown[]; nextBefore?: string | null; error?: string }> {
-  const headers = await authHeaders();
   const params = new URLSearchParams();
   if (before) params.set('before', before);
   const query = params.toString() ? `?${params}` : '';
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE_URL}/api/conversations/${conversationId}/messages${query}`,
-    { headers }
   );
   return res.json();
 }
@@ -459,8 +494,7 @@ export async function getConversationMessages(
  * citySlug is null when the user has not set a home city yet.
  */
 export async function getCityInfo(): Promise<{ data?: CityInfo; error?: string }> {
-  const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/conversations/city`, { headers });
+  const res = await authFetch(`${API_BASE_URL}/api/conversations/city`);
   return res.json();
 }
 
@@ -476,13 +510,11 @@ export async function getCityInfo(): Promise<{ data?: CityInfo; error?: string }
 export async function getCityMessages(
   before?: string
 ): Promise<{ data?: Message[]; nextBefore?: string | null; error?: string }> {
-  const headers = await authHeaders();
   const params = new URLSearchParams();
   if (before) params.set('before', before);
   const query = params.toString() ? `?${params}` : '';
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE_URL}/api/conversations/city/messages${query}`,
-    { headers }
   );
   return res.json();
 }
@@ -503,11 +535,10 @@ export async function getCityMessages(
 export async function getFeed(
   before?: string
 ): Promise<{ data?: Post[]; nextCursor?: string | null; hasMore?: boolean; error?: string }> {
-  const headers = await authHeaders();
   const params = new URLSearchParams();
   if (before) params.set('before', before);
   const query = params.toString() ? `?${params}` : '';
-  const res = await fetch(`${API_BASE_URL}/api/posts${query}`, { headers });
+  const res = await authFetch(`${API_BASE_URL}/api/posts${query}`);
   return res.json();
 }
 
@@ -525,16 +556,13 @@ export async function createPost(
   text: string,
   photoUri?: string
 ): Promise<{ data?: { id: string }; error?: string }> {
-  const token = await auth.currentUser?.getIdToken();
   const formData = new FormData();
   formData.append('text', text);
   if (photoUri) {
     await appendFile(formData, 'photo', photoUri, 'photo.jpg');
   }
-  const res = await fetch(`${API_BASE_URL}/api/posts`, {
+  const res = await authFetch(`${API_BASE_URL}/api/posts`, {
     method: 'POST',
-    // Authorization only — NO Content-Type; let FormData set the boundary (Pitfall 5)
-    headers: { Authorization: `Bearer ${token}` },
     body: formData,
   });
   return res.json();
@@ -551,8 +579,7 @@ export async function createPost(
 export async function getComments(
   postId: string
 ): Promise<{ data?: Comment[]; error?: string }> {
-  const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/posts/${postId}/comments`, { headers });
+  const res = await authFetch(`${API_BASE_URL}/api/posts/${postId}/comments`);
   return res.json();
 }
 
@@ -566,10 +593,8 @@ export async function createComment(
   postId: string,
   text: string
 ): Promise<{ data?: { id: string }; error?: string }> {
-  const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/posts/${postId}/comments`, {
+  const res = await authFetch(`${API_BASE_URL}/api/posts/${postId}/comments`, {
     method: 'POST',
-    headers,
     body: JSON.stringify({ text }),
   });
   return res.json();
@@ -585,10 +610,8 @@ export async function createComment(
 export async function toggleLike(
   postId: string
 ): Promise<{ data?: { likeCount: number; liked: boolean }; error?: string }> {
-  const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/posts/${postId}/like`, {
+  const res = await authFetch(`${API_BASE_URL}/api/posts/${postId}/like`, {
     method: 'POST',
-    headers,
   });
   return res.json();
 }
@@ -602,10 +625,8 @@ export async function toggleLike(
 export async function deletePost(
   postId: string
 ): Promise<{ data?: { deleted: boolean }; error?: string }> {
-  const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/posts/${postId}`, {
+  const res = await authFetch(`${API_BASE_URL}/api/posts/${postId}`, {
     method: 'DELETE',
-    headers,
   });
   return res.json();
 }
@@ -642,10 +663,8 @@ export async function createReview(params: {
   rating: number;
   text: string;
 }): Promise<{ data?: { id: string }; error?: string }> {
-  const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/reviews`, {
+  const res = await authFetch(`${API_BASE_URL}/api/reviews`, {
     method: 'POST',
-    headers,
     body: JSON.stringify(params),
   });
   return res.json();
@@ -667,8 +686,7 @@ export async function createReview(params: {
 export async function getStayReviews(
   stayRequestId: string
 ): Promise<{ data?: StayReviews; error?: string }> {
-  const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/reviews/${stayRequestId}`, { headers });
+  const res = await authFetch(`${API_BASE_URL}/api/reviews/${stayRequestId}`);
   return res.json();
 }
 
@@ -686,7 +704,6 @@ export async function getStayReviews(
 export async function getUserReviews(
   uid: string
 ): Promise<{ data?: UserReviews; error?: string }> {
-  const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}/api/reviews/user/${uid}`, { headers });
+  const res = await authFetch(`${API_BASE_URL}/api/reviews/user/${uid}`);
   return res.json();
 }

@@ -7,9 +7,16 @@ async function verifyFirebaseToken(req, res, next) {
     return res.status(401).json({ error: 'Missing or invalid authorization header' });
   }
   const idToken = authHeader.split('Bearer ')[1];
+  let decodedToken;
   try {
-    const decodedToken = await getAuth().verifyIdToken(idToken);
+    decodedToken = await getAuth().verifyIdToken(idToken);
+  } catch (error) {
+    // Log only the failure reason — never the token, header, or claims.
+    console.warn('[auth] verifyIdToken failed:', error.code || error.message);
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
 
+  try {
     // Ban enforcement: a banned user is blocked from every authenticated endpoint.
     const dbUser = await User.findOne({ firebaseUid: decodedToken.uid })
       .select('banned')
@@ -25,7 +32,9 @@ async function verifyFirebaseToken(req, res, next) {
     };
     next();
   } catch (error) {
-    return res.status(401).json({ error: 'Invalid or expired token' });
+    // A DB failure must not look like an auth failure (client signs out on 401).
+    console.error('[auth] user lookup failed:', error.message);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }
 
