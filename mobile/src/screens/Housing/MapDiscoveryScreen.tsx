@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  SafeAreaView,
 } from 'react-native';
 import MapView, { Marker, Region } from '../../components/Map/MapView';
 import * as Location from 'expo-location';
@@ -148,7 +147,7 @@ export default function MapDiscoveryScreen({ navigation }: Props) {
   // Location permission denied
   if (locationError) {
     return (
-      <SafeAreaView style={styles.centeredContainer}>
+      <View style={styles.centeredContainer}>
         <Text style={styles.errorText}>{locationError}</Text>
         <TouchableOpacity
           style={styles.retryButton}
@@ -158,17 +157,17 @@ export default function MapDiscoveryScreen({ navigation }: Props) {
         >
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Waiting for location
   if (!initialRegion) {
     return (
-      <SafeAreaView style={styles.centeredContainer}>
+      <View style={styles.centeredContainer}>
         <ActivityIndicator size="large" color="#6200ea" />
         <Text style={styles.loadingText}>Finding your location…</Text>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -208,7 +207,7 @@ export default function MapDiscoveryScreen({ navigation }: Props) {
       </MapView>
 
       {/* Floating top bar: search label + filter button */}
-      <SafeAreaView style={styles.topBar} pointerEvents="box-none">
+      <View style={styles.topBar} pointerEvents="box-none">
         <View style={styles.searchBar}>
           <Text style={styles.searchLabel}>Find housing</Text>
           <TouchableOpacity
@@ -222,7 +221,7 @@ export default function MapDiscoveryScreen({ navigation }: Props) {
             </Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
 
       {/* Loading indicator */}
       {loading && (

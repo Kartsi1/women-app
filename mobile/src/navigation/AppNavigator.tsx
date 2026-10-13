@@ -9,6 +9,7 @@ import ReviewComposeScreen from '../screens/Reviews/ReviewComposeScreen';
 import { connectSocket } from '../services/socketService';
 import { useAuthStore } from '../store/authStore';
 import { useConversationStore } from '../store/conversationStore';
+import { useSafeStackScreenOptions } from './useSafeStackScreenOptions';
 
 // ---------------------------------------------------------------------------
 // Type declarations
@@ -112,8 +113,9 @@ import RequestStatusScreen from '../screens/Requests/RequestStatusScreen';
 import HostInboxScreen from '../screens/Requests/HostInboxScreen';
 
 function HousingStackNavigator() {
+  const screenOptions = useSafeStackScreenOptions();
   return (
-    <HousingStack.Navigator screenOptions={{ headerShown: false }}>
+    <HousingStack.Navigator screenOptions={screenOptions}>
       <HousingStack.Screen name="MapDiscovery" component={MapDiscoveryScreen} />
       <HousingStack.Screen name="CreateListing" component={CreateListingScreen} />
       <HousingStack.Screen name="ListingDetail" component={ListingDetailScreen} />
@@ -138,8 +140,9 @@ import MessageRequestInboxScreen from '../screens/Messages/MessageRequestInboxSc
 import CityGroupChatScreen from '../screens/Messages/CityGroupChatScreen';
 
 function MessagesStackNavigator() {
+  const screenOptions = useSafeStackScreenOptions();
   return (
-    <MessagesStack.Navigator screenOptions={{ headerShown: false }}>
+    <MessagesStack.Navigator screenOptions={screenOptions}>
       <MessagesStack.Screen name="ConversationList" component={ConversationListScreen} />
       <MessagesStack.Screen name="DirectMessage" component={DirectMessageScreen} />
       <MessagesStack.Screen name="MessageRequestCompose" component={MessageRequestComposeScreen} />
@@ -161,8 +164,9 @@ import CreatePostScreen from '../screens/Community/CreatePostScreen';
 import PostDetailScreen from '../screens/Community/PostDetailScreen';
 
 function CommunityStackNavigator() {
+  const screenOptions = useSafeStackScreenOptions();
   return (
-    <CommunityStack.Navigator screenOptions={{ headerShown: false }}>
+    <CommunityStack.Navigator screenOptions={screenOptions}>
       <CommunityStack.Screen name="CommunityFeed" component={CommunityFeedScreen} />
       <CommunityStack.Screen name="CreatePost" component={CreatePostScreen} />
       <CommunityStack.Screen name="PostDetail" component={PostDetailScreen} />
@@ -178,8 +182,9 @@ function CommunityStackNavigator() {
 const ProfileStack = createNativeStackNavigator<AppStackParamList>();
 
 function ProfileStackNavigator() {
+  const screenOptions = useSafeStackScreenOptions();
   return (
-    <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
+    <ProfileStack.Navigator screenOptions={screenOptions}>
       <ProfileStack.Screen name="Profile" component={ProfileScreen} />
       <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
       <ProfileStack.Screen name="ViewProfile" component={ViewProfileScreen} />

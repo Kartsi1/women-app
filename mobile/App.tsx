@@ -1,4 +1,6 @@
 import * as Notifications from 'expo-notifications';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useFirebaseAuth } from './src/hooks/useFirebaseAuth';
 import { RootNavigator } from './src/navigation/RootNavigator';
 
@@ -28,5 +30,11 @@ Notifications.setNotificationHandler({
  */
 export default function App() {
   useFirebaseAuth();
-  return <RootNavigator />;
+  return (
+    <SafeAreaProvider>
+      {/* Edge-to-edge (mandatory on Expo 57): dark status-bar icons over the white top area */}
+      <StatusBar style="dark" />
+      <RootNavigator />
+    </SafeAreaProvider>
+  );
 }

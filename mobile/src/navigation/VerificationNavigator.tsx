@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import DocumentUploadScreen from '../screens/Auth/DocumentUploadScreen';
 import PendingVerificationScreen from '../screens/Auth/PendingVerificationScreen';
 import { useAuthStore } from '../store/authStore';
+import { useSafeStackScreenOptions } from './useSafeStackScreenOptions';
 
 /**
  * Navigation param list for the verification flow.
@@ -43,6 +44,8 @@ const Stack = createNativeStackNavigator<VerificationStackParamList>();
  */
 export function VerificationNavigator() {
   const { verificationStatus, verificationLoaded } = useAuthStore();
+  // Hook must run before the early return below (rules of hooks)
+  const screenOptions = useSafeStackScreenOptions();
 
   // Wait for the first backend status fetch before mounting the stack. React
   // Navigation reads initialRouteName only once at mount, so mounting before the
@@ -65,7 +68,7 @@ export function VerificationNavigator() {
 
   return (
     <Stack.Navigator
-      screenOptions={{ headerShown: false }}
+      screenOptions={screenOptions}
       initialRouteName={initialRoute}
     >
       <Stack.Screen name="DocumentUpload" component={DocumentUploadScreen} />

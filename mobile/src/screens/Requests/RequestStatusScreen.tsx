@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   },
   headerBack: {
     paddingHorizontal: 24,
-    paddingTop: 48,
+    paddingTop: 12,
     paddingBottom: 8,
     minHeight: 44,
     justifyContent: 'center',

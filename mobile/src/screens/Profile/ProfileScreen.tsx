@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     backgroundColor: '#fff',
     padding: 24,
-    paddingTop: 48,
+    paddingTop: 12,
     alignItems: 'center',
   },
   photo: {

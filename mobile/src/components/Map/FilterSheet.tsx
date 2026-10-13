@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AvailabilityDatePicker, { DateRange } from '../Common/AvailabilityDatePicker';
 
 interface Props {
@@ -22,6 +23,7 @@ interface Props {
  */
 export default function FilterSheet({ visible, initialValue, onClose, onApply }: Props) {
   const [draft, setDraft] = useState<DateRange>(initialValue);
+  const insets = useSafeAreaInsets();
 
   function handleApply() {
     onApply(draft);
@@ -41,7 +43,7 @@ export default function FilterSheet({ visible, initialValue, onClose, onApply }:
         onPress={onClose}
         accessibilityLabel="Close filter sheet"
       />
-      <SafeAreaView style={styles.sheet}>
+      <View style={[styles.sheet, { paddingBottom: Math.max(32, insets.bottom) }]}>
         <View style={styles.handle} />
 
         <View style={styles.header}>
@@ -68,7 +70,7 @@ export default function FilterSheet({ visible, initialValue, onClose, onApply }:
         >
           <Text style={styles.applyButtonText}>Apply</Text>
         </TouchableOpacity>
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 }

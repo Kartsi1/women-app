@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   },
   headerBackButton: {
     paddingHorizontal: 16,
-    paddingTop: 48,
+    paddingTop: 12,
     paddingBottom: 8,
     minHeight: 44,
     justifyContent: 'center',
