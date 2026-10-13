@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -14,6 +15,7 @@ import { listConversations } from '../../services/api';
 import { useConversationStore } from '../../store/conversationStore';
 import { useAuthStore } from '../../store/authStore';
 import type { Conversation } from '../../types/conversation';
+import { mediaUri } from '../../utils/media';
 
 type Props = NativeStackScreenProps<MessagesStackParamList, 'ConversationList'>;
 
@@ -32,6 +34,7 @@ type Props = NativeStackScreenProps<MessagesStackParamList, 'ConversationList'>;
  */
 export default function ConversationListScreen({ navigation }: Props) {
   const { conversations, setConversations } = useConversationStore();
+  const pendingRequestCount = useConversationStore((s) => s.pendingRequestCount);
   const currentUserUid = useAuthStore((s) => s.user?.uid);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +52,9 @@ export default function ConversationListScreen({ navigation }: Props) {
             : [],
           lastMessageAt: c.lastMessageAt ? String(c.lastMessageAt) : undefined,
           lastMessagePreview: c.lastMessagePreview ? String(c.lastMessagePreview) : undefined,
+          otherUid: c.otherUid ? String(c.otherUid) : undefined,
+          otherDisplayName: c.otherDisplayName ? String(c.otherDisplayName) : null,
+          otherPhotoUrl: c.otherPhotoUrl ? String(c.otherPhotoUrl) : null,
         }));
         setConversations(mapped);
       } else if (res.error) {
@@ -64,15 +70,22 @@ export default function ConversationListScreen({ navigation }: Props) {
   useFocusEffect(
     useCallback(() => {
       loadConversations();
+      void useConversationStore.getState().refreshPendingRequestCount();
     }, [loadConversations])
   );
 
   function getOtherUid(conversation: Conversation): string {
-    return conversation.participants.find((p) => p !== currentUserUid) ?? '';
+    return (
+      conversation.otherUid ??
+      conversation.participants.find((p) => p !== currentUserUid) ??
+      ''
+    );
   }
 
   function renderItem({ item }: { item: Conversation }) {
     const otherUid = getOtherUid(item);
+    const name = item.otherDisplayName || 'A member';
+    const avatarUri = mediaUri(item.otherPhotoUrl);
     return (
       <TouchableOpacity
         style={styles.row}
@@ -80,16 +93,23 @@ export default function ConversationListScreen({ navigation }: Props) {
           navigation.navigate('DirectMessage', {
             conversationId: item.id,
             otherUid,
+            otherName: item.otherDisplayName ?? undefined,
           })
         }
-        accessibilityLabel={`Open conversation with ${otherUid}`}
+        accessibilityLabel={`Open conversation with ${name}`}
       >
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{otherUid.slice(0, 2).toUpperCase()}</Text>
-        </View>
+        {avatarUri ? (
+          <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+        ) : (
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {item.otherDisplayName ? item.otherDisplayName.charAt(0).toUpperCase() : '?'}
+            </Text>
+          </View>
+        )}
         <View style={styles.rowContent}>
           <Text style={styles.participantName} numberOfLines={1}>
-            {otherUid}
+            {name}
           </Text>
           {!!item.lastMessagePreview && (
             <Text style={styles.preview} numberOfLines={1}>
@@ -114,9 +134,20 @@ export default function ConversationListScreen({ navigation }: Props) {
         <TouchableOpacity
           style={styles.inboxButton}
           onPress={() => navigation.navigate('MessageRequestInbox')}
-          accessibilityLabel="Open message requests inbox"
+          accessibilityLabel={
+            pendingRequestCount > 0
+              ? `Open message requests inbox, ${pendingRequestCount} pending`
+              : 'Open message requests inbox'
+          }
         >
           <Text style={styles.inboxButtonText}>Requests</Text>
+          {pendingRequestCount > 0 && (
+            <View style={styles.requestBadge}>
+              <Text style={styles.requestBadgeText}>
+                {pendingRequestCount > 9 ? '9+' : String(pendingRequestCount)}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -204,6 +235,26 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     minHeight: 36,
     justifyContent: 'center',
+    overflow: 'visible',
+  },
+  requestBadge: {
+    position: 'absolute',
+    top: -7,
+    right: -7,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    backgroundColor: '#d32f2f',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  requestBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
   },
   inboxButtonText: {
     color: '#6200ea',
@@ -232,6 +283,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+  },
+  avatarImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginRight: 12,
+    backgroundColor: '#eee',
   },
   avatarText: {
     color: '#6200ea',

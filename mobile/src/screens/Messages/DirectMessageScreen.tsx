@@ -52,7 +52,7 @@ type Props = NativeStackScreenProps<MessagesStackParamList, 'DirectMessage'>;
  *     from the socket token), not hardcoded in events
  */
 export default function DirectMessageScreen({ route, navigation }: Props) {
-  const { conversationId, otherUid } = route.params;
+  const { conversationId, otherUid, otherName } = route.params;
   const currentUserUid = useAuthStore((s) => s.user?.uid) ?? '';
 
   const { activeMessages, appendMessage, setActiveMessages } = useConversationStore();
@@ -195,9 +195,11 @@ export default function DirectMessageScreen({ route, navigation }: Props) {
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => navigation.navigate('ViewProfile', { uid: otherUid })}
-          accessibilityLabel="View profile"
+          accessibilityLabel={`View ${otherName ?? 'member'} profile`}
         >
-          <Text style={styles.headerProfile}>View profile</Text>
+          <Text style={styles.headerProfile} numberOfLines={1}>
+            {otherName ?? 'View profile'}
+          </Text>
         </TouchableOpacity>
       </View>
 

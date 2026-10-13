@@ -1,6 +1,8 @@
 import { io, Socket } from 'socket.io-client';
 import { auth } from '../config/firebase';
 import { useSocketStore } from '../store/socketStore';
+import { useConversationStore } from '../store/conversationStore';
+import { presentLocalNotification } from './push';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
 
@@ -43,6 +45,26 @@ export async function connectSocket(): Promise<Socket> {
     console.log('[Socket] Authenticated handshake confirmed for uid:', uid);
     setConnected(true);
   });
+
+  // Single global registration point for incoming message requests (server emits
+  // to room user:<uid>, see chatHandler.js). Bumps the badge count and shows a
+  // local system notification.
+  socket.on(
+    'message_request:new',
+    (payload: {
+      requestId: string;
+      senderUid: string;
+      senderDisplayName: string | null;
+      intro: string;
+    }) => {
+      useConversationStore.getState().incrementPendingRequestCount();
+      void presentLocalNotification(
+        'New message request',
+        `New message request from ${payload.senderDisplayName || 'a member'}`,
+        { type: 'message_request', requestId: payload.requestId },
+      );
+    },
+  );
 
   return socket;
 }

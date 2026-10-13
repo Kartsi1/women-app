@@ -8,12 +8,15 @@ import {
   ActivityIndicator,
   Modal,
   Alert,
+  Image,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { MessagesStackParamList } from '../../navigation/AppNavigator';
 import { getMessageRequestInbox, updateMessageRequestStatus } from '../../services/api';
 import type { MessageRequest } from '../../types/conversation';
+import { useConversationStore } from '../../store/conversationStore';
+import { mediaUri } from '../../utils/media';
 
 type Props = NativeStackScreenProps<MessagesStackParamList, 'MessageRequestInbox'>;
 
@@ -23,7 +26,8 @@ type Props = NativeStackScreenProps<MessagesStackParamList, 'MessageRequestInbox
  * Displays pending 1:1 message requests addressed to the authenticated user.
  *
  * Each row shows:
- *   - Sender UID (placeholder until profile-enriched in a future slice)
+ *   - Sender avatar (photo or initial) and display name (fallback 'A member') —
+ *     the raw sender UID is never rendered
  *   - Intro preview
  *   - Accept (accent #6200ea) and Decline (destructive #d32f2f) actions
  *
@@ -61,9 +65,13 @@ export default function MessageRequestInboxScreen({ navigation }: Props) {
             intro: String(item.intro ?? ''),
             status: (item.status as MessageRequest['status']) ?? 'pending',
             createdAt: item.createdAt ? String(item.createdAt) : undefined,
+            senderDisplayName: item.senderDisplayName ? String(item.senderDisplayName) : null,
+            senderPhotoUrl: item.senderPhotoUrl ? String(item.senderPhotoUrl) : null,
           };
         });
         setRequests(mapped);
+        // Keep the Requests badge in sync with the inbox (also covers decline reload)
+        useConversationStore.getState().setPendingRequestCount(mapped.length);
       } else if (res.error) {
         setError(res.error);
       }
@@ -91,10 +99,12 @@ export default function MessageRequestInboxScreen({ navigation }: Props) {
         error?: string;
       };
       if (res.conversationId) {
+        await useConversationStore.getState().refreshPendingRequestCount();
         // Navigate to the conversation — otherUid is the sender of the request
         navigation.replace('DirectMessage', {
           conversationId: res.conversationId,
           otherUid: request.senderUid,
+          otherName: request.senderDisplayName ?? undefined,
         });
       } else if (res.error) {
         Alert.alert('Error', res.error);
@@ -123,10 +133,23 @@ export default function MessageRequestInboxScreen({ navigation }: Props) {
 
   function renderItem({ item }: { item: MessageRequest }) {
     const isAccepting = accepting === item.id;
+    const senderName = item.senderDisplayName || 'A member';
+    const avatarUri = mediaUri(item.senderPhotoUrl);
     return (
       <View style={styles.card}>
         <View style={styles.cardContent}>
-          <Text style={styles.senderLabel}>From: {item.senderUid}</Text>
+          <View style={styles.senderRow}>
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {item.senderDisplayName ? item.senderDisplayName.charAt(0).toUpperCase() : '?'}
+                </Text>
+              </View>
+            )}
+            <Text style={styles.senderLabel}>{senderName}</Text>
+          </View>
           <Text style={styles.introPreview} numberOfLines={3}>
             {item.intro}
           </Text>
@@ -136,7 +159,7 @@ export default function MessageRequestInboxScreen({ navigation }: Props) {
             style={[styles.acceptButton, isAccepting && styles.buttonDisabled]}
             onPress={() => handleAccept(item)}
             disabled={isAccepting || !!accepting}
-            accessibilityLabel={`Accept message request from ${item.senderUid}`}
+            accessibilityLabel={`Accept message request from ${senderName}`}
           >
             {isAccepting ? (
               <ActivityIndicator color="#fff" size="small" />
@@ -148,7 +171,7 @@ export default function MessageRequestInboxScreen({ navigation }: Props) {
             style={[styles.declineButton, (isAccepting || !!accepting) && styles.buttonDisabled]}
             onPress={() => setDeclineTarget(item)}
             disabled={isAccepting || !!accepting}
-            accessibilityLabel={`Decline message request from ${item.senderUid} — this cannot be undone`}
+            accessibilityLabel={`Decline message request from ${senderName} — this cannot be undone`}
           >
             <Text style={styles.declineButtonText}>Decline</Text>
           </TouchableOpacity>
@@ -209,7 +232,7 @@ export default function MessageRequestInboxScreen({ navigation }: Props) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>
-              Decline {declineTarget?.senderUid ?? ''}'s request?
+              Decline {declineTarget?.senderDisplayName || 'A member'}'s request?
             </Text>
             <Text style={styles.modalSubtitle}>
               The sender will be notified that their request was declined.
@@ -280,11 +303,37 @@ const styles = StyleSheet.create({
   cardContent: {
     marginBottom: 12,
   },
+  senderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#ede7f6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  avatarImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 10,
+    backgroundColor: '#eee',
+  },
+  avatarText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#6200ea',
+  },
   senderLabel: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#555',
-    marginBottom: 6,
+    color: '#333',
+    flexShrink: 1,
   },
   introPreview: {
     fontSize: 15,

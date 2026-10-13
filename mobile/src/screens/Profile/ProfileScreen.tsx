@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { AppStackParamList } from '../../navigation/AppNavigator';
 import { useProfileStore } from '../../store/profileStore';
 import { useAuthStore } from '../../store/authStore';
@@ -44,10 +45,15 @@ export default function ProfileScreen({ navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [userReviews, setUserReviews] = useState<UserReviews | null>(null);
 
-  useEffect(() => {
-    loadProfile();
-    loadReviews();
-  }, []);
+  // Refetch on every tab focus so the profile (and its short-lived signed photo URL)
+  // is fresh after editing or returning to the tab.
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+      loadReviews();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []),
+  );
 
   async function loadProfile() {
     setLoading(true);

@@ -8,6 +8,7 @@ import ViewProfileScreen from '../screens/Profile/ViewProfileScreen';
 import ReviewComposeScreen from '../screens/Reviews/ReviewComposeScreen';
 import { connectSocket } from '../services/socketService';
 import { useAuthStore } from '../store/authStore';
+import { useConversationStore } from '../store/conversationStore';
 
 // ---------------------------------------------------------------------------
 // Type declarations
@@ -64,7 +65,7 @@ export type HousingStackParamList = {
  */
 export type MessagesStackParamList = {
   ConversationList: undefined;
-  DirectMessage: { conversationId: string; otherUid: string };
+  DirectMessage: { conversationId: string; otherUid: string; otherName?: string };
   MessageRequestCompose: { recipientUid: string };
   MessageRequestInbox: undefined;
   CityGroupChat: undefined;
@@ -213,6 +214,7 @@ const Tab = createBottomTabNavigator<TabParamList>();
  */
 export function AppNavigator() {
   const { user } = useAuthStore();
+  const pendingRequestCount = useConversationStore((s) => s.pendingRequestCount);
 
   useEffect(() => {
     if (user) {
@@ -220,6 +222,8 @@ export function AppNavigator() {
       connectSocket().catch((err) =>
         console.warn('[Socket] connectSocket failed:', err)
       );
+      // Initial pending message-request count for the badge
+      void useConversationStore.getState().refreshPendingRequestCount();
     }
   }, [user]);
 
@@ -246,6 +250,13 @@ export function AppNavigator() {
         component={MessagesStackNavigator}
         options={{
           tabBarLabel: 'Messages',
+          tabBarBadge:
+            pendingRequestCount > 0
+              ? pendingRequestCount > 9
+                ? '9+'
+                : pendingRequestCount
+              : undefined,
+          tabBarBadgeStyle: { backgroundColor: '#d32f2f', color: '#fff' },
           tabBarIcon: ({ color }) => (
             <Text style={{ fontSize: 20, color }}>💬</Text>
           ),

@@ -15,6 +15,9 @@ export interface MessageRequest {
   intro: string;
   status: 'pending' | 'accepted' | 'declined';
   createdAt?: string;
+  // Server-enriched sender info (GET /api/message-requests/inbox) — null/absent when unknown.
+  senderDisplayName?: string | null;
+  senderPhotoUrl?: string | null;
 }
 
 /**
@@ -22,12 +25,18 @@ export interface MessageRequest {
  * A Conversation is created only when a MessageRequest is accepted.
  *
  * participants: exactly two Firebase UIDs, server-sorted.
+ *
+ * otherUid / otherDisplayName / otherPhotoUrl: server-enriched info about the OTHER
+ * participant (GET /api/conversations) — display name and signed avatar URL, null when unknown.
  */
 export interface Conversation {
   id: string;
   participants: string[];
   lastMessageAt?: string;
   lastMessagePreview?: string;
+  otherUid?: string;
+  otherDisplayName?: string | null;
+  otherPhotoUrl?: string | null;
 }
 
 /**
