@@ -6,7 +6,7 @@ node_modules/
 .expo/
 dist/
 build/
-.planning/
+.planning/research/.cache/
 
 # secrets — never commit (also covers mobile/ under monorepo)
 *-adminsdk*.json
