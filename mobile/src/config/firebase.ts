@@ -29,8 +29,12 @@ export const auth = Platform.OS === 'web'
 
 export const storage = getStorage(app);
 
-// Connect to Emulators in development mode (Plan 01-Local-Server)
-if (__DEV__) {
+// Dev builds always use the emulators. Release builds use them only when the
+// flag is exactly 'true' (LAN phone testing with the developer PC as server).
+// Must stay static dot notation so Expo inlines the value at bundle time.
+const useEmulators = __DEV__ || process.env.EXPO_PUBLIC_USE_EMULATORS === 'true';
+
+if (useEmulators) {
   // Extract host from API_BASE_URL (e.g., http://192.168.1.50:3000 -> 192.168.1.50)
   const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
   const host = apiBaseUrl.split('://')[1]?.split(':')[0] || 'localhost';
