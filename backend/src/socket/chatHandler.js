@@ -9,6 +9,8 @@ const { sendPushNotification } = require('../services/notificationService');
  * the core connection/disconnection lifecycle, and the full suite of chat handlers:
  *   1:1 DM room  (plan 02-04): join:dm, leave:dm, message:dm
  *   City group   (plan 02-05): join:city, leave:city, message:city
+ *   User room   (quick umq):  auto-joined `user:{uid}` on connection for server-pushed
+ *                             events (message_request:new)
  *
  * Security:
  *   T-02-01-01, T-02-01-02 — Firebase-token auth for every connection
@@ -58,6 +60,10 @@ function registerSocketHandlers(io) {
     const { uid } = socket.data;
     // Confirm authenticated handshake to the client
     socket.emit('connected', { uid });
+    // Per-user room for server-pushed events (e.g. message_request:new). uid comes
+    // from the verified token in io.use, so a client can only ever be in its own
+    // user room — no client-facing join event exists (T-umq-02).
+    socket.join(`user:${uid}`);
     console.log('Authenticated socket connected:', socket.id, 'uid:', uid);
 
     // ── join:dm ──────────────────────────────────────────────────────────────

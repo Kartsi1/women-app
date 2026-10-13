@@ -3,6 +3,28 @@ const Report = require('../models/Report');
 const { uploadVerificationDoc, getSignedUrl, uploadFile } = require('../services/storageService');
 
 /**
+ * buildOwnProfileData — the caller's OWN profile projection (shared by
+ * GET /api/users/me and PUT /api/users/profile so both return a signed photoURL
+ * and never leak private fields: email, verification doc paths, blockedUsers,
+ * expoPushToken — T-umq-03).
+ */
+async function buildOwnProfileData(user) {
+  const photoURL = user.photoURL ? await getSignedUrl(user.photoURL) : null;
+  return {
+    uid: user.firebaseUid,
+    displayName: user.displayName,
+    bio: user.bio,
+    homeCity: user.homeCity,
+    photoURL,
+    isVerified: user.verificationStatus === 'approved',
+    hostsCount: user.hostsCount,
+    tripsCount: user.tripsCount,
+    verificationStatus: user.verificationStatus,
+    rejectionReason: user.rejectionReason ?? null,
+  };
+}
+
+/**
  * POST /api/users/verification-docs
  *
  * Accepts a multipart upload (via multer memoryStorage.fields) containing:
@@ -93,7 +115,7 @@ async function savePushToken(req, res) {
  * Update the authenticated user's display name, bio, and home city.
  *
  * Body: { displayName?, bio?, homeCity? }
- * Success response: { data: user }
+ * Success response: { data: <own profile projection, same as GET /api/users/me> }
  * Error responses:
  *   400 — bio exceeds 500 characters
  *   404 — user document not found (should not happen for verified users)
@@ -127,7 +149,7 @@ async function updateProfile(req, res) {
     );
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    res.json({ data: user });
+    res.json({ data: await buildOwnProfileData(user) });
   } catch (err) {
     console.error('[updateProfile]', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -202,20 +224,7 @@ async function getOwnProfile(req, res) {
     const target = await User.findOne({ firebaseUid: req.user.uid });
     if (!target) return res.status(404).json({ error: 'User not found' });
 
-    const photoURL = target.photoURL ? await getSignedUrl(target.photoURL) : null;
-
-    const data = {
-      uid: target.firebaseUid,
-      displayName: target.displayName,
-      bio: target.bio,
-      homeCity: target.homeCity,
-      photoURL,
-      isVerified: target.verificationStatus === 'approved',
-      hostsCount: target.hostsCount,
-      tripsCount: target.tripsCount,
-      verificationStatus: target.verificationStatus,
-      rejectionReason: target.rejectionReason ?? null,
-    };
+    const data = await buildOwnProfileData(target);
 
     res.json({ data });
   } catch (err) {

@@ -1,6 +1,7 @@
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const User = require('../models/User');
+const { getUserSummaries } = require('../services/userSummaryService');
 
 /**
  * GET /api/conversations
@@ -12,16 +13,28 @@ const User = require('../models/User');
  * the requester belongs to are returned.
  *
  * Success response: { data: Conversation[] }
- *   Each row: id, participants, lastMessageAt, lastMessagePreview.
+ *   Each row: id, participants, lastMessageAt, lastMessagePreview plus the enriched
+ *   otherUid / otherDisplayName / otherPhotoUrl (signed URL) of the other participant.
  */
 async function listConversations(req, res) {
   try {
     const conversations = await Conversation.find(
       { participants: req.user.uid },
       { _id: 1, participants: 1, lastMessageAt: 1, lastMessagePreview: 1 }
-    ).sort({ lastMessageAt: -1 });
+    ).sort({ lastMessageAt: -1 }).lean();
 
-    res.json({ data: conversations });
+    const withOther = conversations.map((c) => ({
+      ...c,
+      otherUid: (c.participants || []).find((p) => p !== req.user.uid) || null,
+    }));
+    const summaries = await getUserSummaries(withOther.map((c) => c.otherUid));
+    const data = withOther.map((c) => ({
+      ...c,
+      otherDisplayName: summaries[c.otherUid]?.displayName ?? null,
+      otherPhotoUrl: summaries[c.otherUid]?.photoUrl ?? null,
+    }));
+
+    res.json({ data });
   } catch (err) {
     console.error('[listConversations]', err);
     res.status(500).json({ error: 'Internal server error' });

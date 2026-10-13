@@ -3,6 +3,7 @@ const MessageRequest = require('../models/MessageRequest');
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const { sendPushNotification } = require('../services/notificationService');
+const { getUserSummaries } = require('../services/userSummaryService');
 
 /**
  * POST /api/message-requests
@@ -76,6 +77,23 @@ async function createMessageRequest(req, res) {
       // status defaults to 'pending'
     });
 
+    // Real-time in-app signal: push to the recipient's per-user socket room.
+    // Own try/catch — a socket failure must never turn the 201 into a 500.
+    try {
+      const sender = await User.findOne({ firebaseUid: senderUid }).select('displayName').lean();
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`user:${recipientUid}`).emit('message_request:new', {
+          requestId: messageRequest._id.toString(),
+          senderUid,
+          senderDisplayName: sender?.displayName || null,
+          intro: messageRequest.intro.slice(0, 140),
+        });
+      }
+    } catch (emitErr) {
+      console.error('[createMessageRequest] socket emit failed', emitErr);
+    }
+
     // Push notification to the recipient
     await sendPushNotification(
       recipient.expoPushToken,
@@ -98,16 +116,24 @@ async function createMessageRequest(req, res) {
  * Only pending requests are shown — accepted/declined are resolved.
  *
  * Success response: { data: MessageRequest[] }
- *   Each row includes: senderUid, intro, status, createdAt (safe projection).
+ *   Each row includes: senderUid, intro, status, createdAt (safe projection) plus the
+ *   enriched senderDisplayName / senderPhotoUrl (signed URL) — null when unknown.
  */
 async function getRequestInbox(req, res) {
   try {
     const requests = await MessageRequest.find(
       { recipientUid: req.user.uid, status: 'pending' },
       { senderUid: 1, intro: 1, status: 1, createdAt: 1, _id: 1 }
-    ).sort({ createdAt: -1 });
+    ).sort({ createdAt: -1 }).lean();
 
-    res.json({ data: requests });
+    const summaries = await getUserSummaries(requests.map((r) => r.senderUid));
+    const data = requests.map((r) => ({
+      ...r,
+      senderDisplayName: summaries[r.senderUid]?.displayName ?? null,
+      senderPhotoUrl: summaries[r.senderUid]?.photoUrl ?? null,
+    }));
+
+    res.json({ data });
   } catch (err) {
     console.error('[getRequestInbox]', err);
     res.status(500).json({ error: 'Internal server error' });

@@ -18,3 +18,6 @@ GoogleService-Info.plist
 *.p12
 *.keystore
 .idea/
+
+# Firebase emulator export (Auth users + uploaded verification ID photos) — never commit
+.firebase-emulator-data/

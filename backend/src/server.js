@@ -28,6 +28,9 @@ const io = new Server(httpServer, {
   },
 });
 
+// Controllers emit real-time events via req.app.get('io')
+app.set('io', io);
+
 app.use(cors());
 app.use(express.json());
 

@@ -5,7 +5,8 @@
 #   make backend    только backend — Express на :3000
 #   make admin      только admin — Vite на :5173
 #   make mobile     только mobile — Expo dev server
-#   make emulators  только Firebase Emulators (Auth :9099, Storage :9199, UI :4000)
+#   make emulators  только Firebase Emulators (Auth :9099, Storage :9199, UI :4000);
+#                   данные сохраняются в .firebase-emulator-data/ (export при выходе, import при старте)
 #   make db-up      поднять MongoDB в docker (:27017, detached)
 #   make db-down    остановить и удалить контейнеры docker
 #   make down       остановить инфраструктуру (Mongo)
@@ -22,7 +23,7 @@ help:
 	@echo "  make backend    Только backend — Express на :3000"
 	@echo "  make admin      Только admin — Vite на :5173"
 	@echo "  make mobile     Только mobile — Expo dev server"
-	@echo "  make emulators  Только Firebase Emulators (Auth :9099, Storage :9199, UI :4000)"
+	@echo "  make emulators  Только Firebase Emulators (Auth :9099, Storage :9199, UI :4000), данные в .firebase-emulator-data/"
 	@echo "  make db-up      MongoDB в docker (:27017, detached)"
 	@echo "  make down       Остановить инфраструктуру (Mongo)"
 	@echo "  make ip         Показать LAN IP для доступа с телефона"
@@ -49,7 +50,8 @@ db-down:
 
 # Firebase Emulators (Auth/Storage/UI) по firebase.json + .firebaserc. Нужен Java (есть JDK 21).
 emulators:
-	npx -y firebase-tools emulators:start
+	mkdir -p .firebase-emulator-data
+	npx -y firebase-tools emulators:start --import=./.firebase-emulator-data --export-on-exit
 
 # Полный dev-стек одной командой.
 # Сначала поднимаем Mongo (detached), затем эмуляторы + три сервера в одной группе процессов.
@@ -60,7 +62,7 @@ dev: db-up
 	fi
 	@echo "Запуск эмуляторов + backend + admin + mobile… Ctrl+C останавливает серверы (Mongo — make down)."
 	@trap 'kill 0' INT TERM EXIT; \
-		( npx -y firebase-tools emulators:start ) & \
+		( mkdir -p .firebase-emulator-data && npx -y firebase-tools emulators:start --import=./.firebase-emulator-data --export-on-exit ) & \
 		( cd backend && npm run dev ) & \
 		( cd admin && npm run dev ) & \
 		( cd mobile && npm start ) & \
