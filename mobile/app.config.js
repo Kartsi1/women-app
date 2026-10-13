@@ -72,6 +72,17 @@ module.exports = {
         },
       ],
       '@react-native-community/datetimepicker',
+      [
+        'expo-build-properties',
+        {
+          android: {
+            // Android 9+ release builds block http:// by default. This allows the
+            // plain-HTTP backend and Firebase emulators on the dev PC during LAN
+            // testing. Revisit (HTTPS backend) before any store release.
+            usesCleartextTraffic: true,
+          },
+        },
+      ],
     ],
     extra: {
       eas: {
