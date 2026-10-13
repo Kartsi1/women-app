@@ -92,7 +92,7 @@ v1.0 requirements (VERI, PROF-01..04, LIST, REQT, MSG, COMM, REVW) shipped — a
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| I18N-01 | Phase 10 | Pending |
+| I18N-01 | Phase 4 | Pending |
 | I18N-02 | Phase 4 | Pending |
 | I18N-03 | Phase 4 | Pending |
 | I18N-04 | Phase 4 | Pending |

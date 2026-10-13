@@ -19,13 +19,13 @@ v1.1 starts with two small foundation phases. The first adds the RU/EN localizat
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 4: Localization Foundation** - RU/EN i18n layer (default RU, switcher, plurals, dates, server-side localized errors/notifications) and one native rebuild with every v1.1 module
+- [ ] **Phase 4: Localization Foundation** - RU/EN i18n layer (default RU, switcher, plurals, dates, server-side localized errors/notifications), full translation of all v1.0 screens, and one native rebuild with every v1.1 module
 - [ ] **Phase 5: Approximate Housing Area** - Listings shown as a stable ~500 m circle with a district name; exact point only for host and accepted guest; v1.0 listings migrated
 - [ ] **Phase 6: VK-Style Profile** - Cover, avatar, status, city and optional "More info" fields with server-side per-field hiding
 - [ ] **Phase 7: Friends & Followers** - Friend requests, following, mutual friends, friends skip message requests, rate limits, and blocking that separates members everywhere
 - [ ] **Phase 8: Rich Media in Community** - Safe uploads (progress/cancel/retry, metadata stripping, validation), photos/video/audio/files and music link cards in posts, full-screen viewer and playback
 - [ ] **Phase 9: Profile Wall & Reposts** - Wall of the owner's posts with Main/Posts/Photos tabs; reposting community posts to the wall
-- [ ] **Phase 10: Chat Attachments & Full Localization** - Photos/videos in DMs and city chats, files in DMs, exactly-once delivery; every remaining screen localized RU/EN
+- [ ] **Phase 10: Chat Attachments** - Photos/videos in DMs and city chats, files in DMs, exactly-once delivery
 
 ## Phase Details
 
@@ -33,18 +33,19 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Goal**: Members use the app in Russian by default and can switch to English at any moment. Counts, dates and server messages read naturally in their language.
 **Depends on**: Nothing in v1.1 (builds on shipped v1.0)
-**Requirements**: I18N-02, I18N-03, I18N-04, I18N-05
+**Requirements**: I18N-01, I18N-02, I18N-03, I18N-04, I18N-05
 **Success Criteria** (what must be TRUE):
 
   1. On a fresh install the interface opens in Russian (navigation tabs, profile and settings screens, auth and system messages)
-  2. User can switch RU/EN in her profile. Translated screens change language immediately without restarting the app, and the choice is still in effect after the app is closed and reopened
+  2. User can switch RU/EN in Settings (from her profile) and on the sign-in screen. Translated screens change language immediately without restarting the app, and the choice is still in effect after the app is closed and reopened
   3. Counters use correct Russian plural forms ("1 подруга / 2 подруги / 5 подруг") and dates are formatted for the chosen language, including in the release APK on the test phone
   4. Server error messages (e.g. validation failures) and server-originated notifications arrive in the member's chosen language, and switching language changes them for subsequent messages
   5. A new release APK with all v1.1 native modules installs on the test phone, and every v1.0 flow (verification, listings, stay requests, chats, community, reviews) still works
+  6. Every existing v1.0 screen (auth, verification, listings, map, stay requests, chats, community, reviews, profile) shows no untranslated or hard-coded strings in either RU or EN
 
 **Plans**: TBD
 **UI hint**: yes
-**Notes**: Install all SDK-pinned native modules (expo-video, expo-audio, expo-document-picker, expo-image, expo-sharing, expo-localization, gesture-handler/reanimated/worklets at Expo 57 pins, react-native-zoom-toolkit) in ONE `npx expo install` batch, then ONE rebuild. Spike: Hermes `Intl.PluralRules`/`DateTimeFormat`/`RelativeTimeFormat` in the release APK (`intl-pluralrules` polyfill if needed). Keep the English `error` field next to a new stable `code` so installed v1.0 APKs keep working. Before switching display language, check that city chat rooms key on a canonical city id rather than a localized name. Full sweep of legacy v1.0 screens is deferred to Phase 10 (I18N-01). From this phase on, every new screen is written with `t()`.
+**Notes**: Install all SDK-pinned native modules (expo-video, expo-audio, expo-document-picker, expo-image, expo-sharing, expo-localization, gesture-handler/reanimated/worklets at Expo 57 pins, react-native-zoom-toolkit) in ONE `npx expo install` batch, then ONE rebuild. Spike: Hermes `Intl.PluralRules`/`DateTimeFormat`/`RelativeTimeFormat` in the release APK (`intl-pluralrules` polyfill if needed). Keep the English `error` field next to a new stable `code` so installed v1.0 APKs keep working. Before switching display language, check that city chat rooms key on a canonical city id rather than a localized name. Full translation of all legacy v1.0 screens happens in THIS phase (I18N-01, moved from Phase 10 per discuss-phase 2026-10-13). From this phase on, every new screen is written with `t()`. See 04-CONTEXT.md for tone/terminology decisions.
 
 ### Phase 5: Approximate Housing Area
 
@@ -130,22 +131,21 @@ Decimal phases appear between their surrounding integers in numeric order.
 **UI hint**: yes
 **Notes**: Unify Post with `scope: 'community' | 'wall'` plus `wallOwnerUid`, and backfill `scope` on v1.0 posts. `repostOf` is flattened to the root, with an `allowReposts` flag and a tombstone presenter. Reuse the Phase 7 `visibilityService`, and watch N+1 queries (query-count budget). Profile header + tabs + wall needs a single virtualized list (nested-list jank pitfall).
 
-### Phase 10: Chat Attachments & Full Localization
+### Phase 10: Chat Attachments
 
-**Goal**: Members can safely share photos, videos and files in conversations, and the entire app reads correctly in Russian and English.
+**Goal**: Members can safely share photos, videos and files in conversations.
 **Depends on**: Phase 8 (media pipeline, viewer, playback), Phase 7 (friend vs message-request state gates attachments)
-**Requirements**: CHAT-01, CHAT-02, CHAT-03, CHAT-04, CHAT-05, I18N-01
+**Requirements**: CHAT-01, CHAT-02, CHAT-03, CHAT-04, CHAT-05
 **Success Criteria** (what must be TRUE):
 
   1. User can send photos and videos in DMs and city chats and files in DMs. Recipients see them in the conversation and can open them in the full-screen viewer or open/share the file
   2. An attachment sent while the connection drops and reconnects arrives as exactly one message. Someone who is not a participant cannot open the attachment's link
   3. In a pending message request the attach option is unavailable, and the server rejects attachments sent there anyway
   4. The conversation list previews attachment messages in the member's language (e.g. "Фото" / "Photo")
-  5. Every screen, including all v1.0 screens (auth, verification, listings, map, stay requests, chats, community, reviews, profile), shows no untranslated or hard-coded strings in either RU or EN
 
 **Plans**: TBD
 **UI hint**: yes
-**Notes**: Upload over REST and send media ids over the socket (1 MB Socket.io buffer). A client idempotency key gives exactly-once delivery and keeps the store-first + optimistic dedupe flow. `Message.content` is currently required. Store `lastMessageKind` instead of a localized preview string. Resolve URLs for participants only. Files in city chats are deferred (CHAT-07, v2). The I18N-01 sweep covers all remaining legacy screens and confirms no hard-coded strings remain.
+**Notes**: Upload over REST and send media ids over the socket (1 MB Socket.io buffer). A client idempotency key gives exactly-once delivery and keeps the store-first + optimistic dedupe flow. `Message.content` is currently required. Store `lastMessageKind` instead of a localized preview string. Resolve URLs for participants only. Files in city chats are deferred (CHAT-07, v2).
 
 ## Progress
 
